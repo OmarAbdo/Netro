@@ -6,7 +6,7 @@ and how much Co2 were produced as a result of using the vehicles.
 
 Next command for O1
 
-Can you make me a 3rd script that will get the solution from a TruckDeliveryBaseline instance and run your suggested verification of the solution (points 2.a to 2.d) as well as points suggested for enhancing the solver? visualization, saving results to a file, and using a different numbers of trucks?
+Can you make me a 3rd script that will get the solution from a TruckDeliveryBaseline instance and run your suggested verification of the solution (points 2.a Route Validity, 2.2 Capacity Constraints,  to 2.d) as well as points suggested for enhancing the solver? visualization, saving results to a file, and using a different numbers of trucks?
 
 optionally we can also optimize the solver params and have a gurobi implementation.
 

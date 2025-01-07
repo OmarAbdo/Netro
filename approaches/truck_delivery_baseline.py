@@ -215,3 +215,42 @@ if __name__ == "__main__":
         print(f"\nTotal Distance Traveled: {result['total_distance']}")
     else:
         print("No solution found.")
+
+    # Display detailed results
+    if result["routes"] is not None:
+        print("\n--- Routes ---")
+        for idx, route in enumerate(result["routes"]):
+            print(f"Truck {idx + 1}: {route}")
+        print(f"\nTotal Distance Traveled: {result['total_distance']}")
+
+        # Additional Benchmarking
+        total_cost = 0.0
+        total_emissions = 0.0
+        total_time = 0.0
+
+        for idx, route in enumerate(result["routes"]):
+            distance = 0.0
+            # Calculate distance for the current route using the distance matrix
+            for j in range(len(route) - 1):
+                from_node = route[j]
+                to_node = route[j + 1]
+                distance += distance_matrix[from_node][to_node]
+
+            # Use the corresponding truck for route idx
+            truck = trucks[idx]
+
+            # Compute time required, cost, and emissions for this route
+            time_needed = distance / truck.speed  # in hours
+            cost = distance * truck.cost_per_km + time_needed * truck.cost_per_hour
+            emissions = distance * truck.emissions_per_km
+
+            total_cost += cost
+            total_emissions += emissions
+            total_time += time_needed
+
+        print(f"\n--- Benchmark Data ---")
+        print(f"Total Cost: {total_cost:.2f}")
+        print(f"Total Time (sum of all routes in hours): {total_time:.2f}")
+        print(f"Total CO₂ Emissions: {total_emissions:.2f} grams")
+    else:
+        print("No solution found.")
