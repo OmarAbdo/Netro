@@ -9,7 +9,7 @@ import os
 
 sys.path.append(os.getcwd())
 from entities.truck import Truck
-from distance_matrix_calculator import DistanceMatrixCalculator
+from utils.distance_matrix_calculator import DistanceMatrixCalculator
 from truck_delivery_baseline import TruckDeliveryBaseline
 
 
