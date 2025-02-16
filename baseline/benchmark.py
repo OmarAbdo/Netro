@@ -4,10 +4,13 @@ import sys
 import csv
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import sys
+import os
 
+sys.path.append(os.getcwd())
 from entities.truck import Truck
-from utils.distance_matrix_calculator import DistanceMatrixCalculator
-from utils.truck_delivery_baseline import TruckDeliveryBaseline
+from distance_matrix_calculator import DistanceMatrixCalculator
+from truck_delivery_baseline import TruckDeliveryBaseline
 
 
 # Single Responsibility Classes
