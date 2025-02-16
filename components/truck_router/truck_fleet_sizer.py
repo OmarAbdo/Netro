@@ -23,7 +23,7 @@ import math
 from entities.truck import Truck
 from components.customer_analysis.customer_analysis import (
     CustomerAnalyzer,
-)  # Import the actual customer analysis module
+)  # Use actual CustomerAnalyzer
 
 
 class TruckFleetSizer:
@@ -82,7 +82,6 @@ class TruckFleetSizer:
 
 if __name__ == "__main__":
     # Usage Example for TruckFleetSizer using the actual CustomerAnalyzer from the Solomon dataset.
-    # Ensure the current working directory is appended so that module imports work smoothly.
     import sys
     import os
 
@@ -91,22 +90,22 @@ if __name__ == "__main__":
     # Path to the Solomon dataset file
     file_path = "dataset/c101.txt"
 
-    # Create an instance of CustomerAnalyzer (from our customer_analysis module)
+    # Create an instance of CustomerAnalyzer and load data
+    analyzer = CustomerAnalyzer(file_path)
+    customers_df = analyzer.load_data()
+
+    # Use the static method orders_from_solomon_df to convert customer data to orders (excluding depot)
     from components.customer_analysis.customer_analysis import CustomerAnalyzer
 
-    analyzer = CustomerAnalyzer(file_path)
+    orders = CustomerAnalyzer.orders_from_solomon_df(customers_df)
 
-    # Load the customer data and convert it into orders (excluding depot)
-    customers_df = analyzer.load_data()
-    orders = analyzer.orders_from_solomon_df(customers_df)
-
-    # For this example, assume each truck has a capacity of 200 (units)
+    # For example, if each truck has a capacity of 200 units:
     truck_capacity = 200
 
-    # Initialize the TruckFleetSizer with the truck capacity and the orders obtained from customer analysis
+    # Initialize the TruckFleetSizer with the truck capacity and orders obtained from the CustomerAnalyzer
     fleet_sizer = TruckFleetSizer(truck_capacity, orders)
 
-    # Calculate total demand and required fleet size based on the orders from the Solomon dataset
+    # Calculate total demand and required fleet size based on orders from the Solomon dataset
     total_demand = fleet_sizer.total_demand()
     num_trucks = fleet_sizer.calculate_fleet_size()
 

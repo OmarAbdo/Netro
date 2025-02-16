@@ -117,6 +117,31 @@ class CustomerAnalyzer:
         centroids = kmeans.cluster_centers_
         return labels, centroids
 
+    @staticmethod
+    def orders_from_solomon_df(customers_df):
+        """
+        Convert a Solomon dataset DataFrame into a list of orders for loading.
+        Assumes the depot is the first row (ID == 0) and skips it.
+
+        Each order is a dictionary with:
+            - 'id': customer ID
+            - 'demand': customer's demand
+
+        :param customers_df: Pandas DataFrame with Solomon dataset columns including 'ID' and 'Demand'
+        :return: List of order dictionaries.
+        """
+        orders_df = customers_df[customers_df["ID"] != 0]
+        orders = []
+        for _, row in orders_df.iterrows():
+            orders.append(
+                {
+                    "id": int(row["ID"]),
+                    "demand": int(row["Demand"]),
+                    # Optionally, add coordinates if needed later: "X": row["X"], "Y": row["Y"]
+                }
+            )
+        return orders
+
 
 if __name__ == "__main__":
     # Usage Example for CustomerAnalyzer
