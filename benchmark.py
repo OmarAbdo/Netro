@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from entities.truck import Truck
-from DistanceMatrixCalculator import DistanceMatrixCalculator
-from approaches.truck_delivery_baseline import TruckDeliveryBaseline
+from utils.distance_matrix_calculator import DistanceMatrixCalculator
+from utils.truck_delivery_baseline import TruckDeliveryBaseline
 
 
 # Single Responsibility Classes
