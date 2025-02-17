@@ -2,34 +2,31 @@
 CustomerAnalyzer Module
 -------------------------
 This module implements the CustomerAnalyzer class to perform customer analysis on the Solomon dataset.
-It extracts key information such as total demand, distribution of customer locations, and performs clustering using K-means.
+It extracts key information such as total demand, distribution of customer locations, and performs clustering using HDBSCAN.
+HDBSCAN automatically determines the number of clusters based on the density of the data.
 
 Inspiration and References:
+    - McInnes, L., Healy, J., & Astels, S. (2017), "HDBSCAN: Hierarchical Density Based Clustering", The Journal of Open Source Software.
+      (For robust, automatic cluster detection; see p. 2, lines 20–30.)
     - Solomon, M.M. (1987), "Algorithms for the Vehicle Routing and Scheduling Problems with Time Window Constraints".
-      (For basic dataset analysis and demand calculation. See page 3, lines 10-15 for demand summary approaches.)
-    - Mourelo Ferrandez et al. (2016), "Optimization of a Truck-drone in Tandem Delivery Network Using K-means and Genetic Algorithm".
-      (For clustering ideas using K-means; see page 377, lines 10-15.)
-      
-This module ignores time window constraints as requested.
+      (For basic dataset analysis and demand calculation.)
 """
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
+import hdbscan
 import sys
 import os
 
 sys.path.append(os.getcwd())
-from utils.distance_matrix_calculator import (
-    DistanceMatrixCalculator,
-)  # assuming this is in utils folder
+from utils.distance_matrix_calculator import DistanceMatrixCalculator
 
 
 class CustomerAnalyzer:
     """
-    CustomerAnalyzer class loads and analyzes customer data from a Solomon dataset.
-    It computes statistics such as total demand and clusters customers based on their geographic coordinates.
+    CustomerAnalyzer loads and analyzes customer data from a Solomon dataset.
+    It computes statistics such as total demand and clusters customers based on geographic coordinates.
     """
 
     def __init__(self, file_path):
@@ -39,14 +36,12 @@ class CustomerAnalyzer:
         :param file_path: Path to the Solomon VRPTW instance file.
         """
         self.file_path = file_path
-        self.customers_df = None  # DataFrame holding customer data
+        self.customers_df = None
 
     def load_data(self):
         """
-        Load and parse the Solomon dataset.
-        Uses DistanceMatrixCalculator to load data.
-
-        Note: Assumes the depot is the first row with ID==0.
+        Load and parse the Solomon dataset using DistanceMatrixCalculator.
+        Assumes the depot is the first row with ID == 0.
         """
         calculator = DistanceMatrixCalculator(self.file_path)
         calculator.load_data()
@@ -55,34 +50,28 @@ class CustomerAnalyzer:
 
     def compute_statistics(self):
         """
-        Compute and return basic statistics from the customer data.
+        Compute basic statistics from the customer data.
 
-        :return: A dictionary with total demand, number of customers (excluding depot), average demand.
+        :return: Dictionary with total demand, number of customers (excluding depot), and average demand.
         """
         if self.customers_df is None:
             raise ValueError("Customer data not loaded. Call load_data() first.")
-
-        # Exclude depot (assumed to have ID 0)
         df = self.customers_df[self.customers_df["ID"] != 0]
         total_demand = df["Demand"].sum()
         num_customers = len(df)
         avg_demand = df["Demand"].mean()
-
-        stats = {
+        return {
             "total_demand": total_demand,
             "num_customers": num_customers,
             "avg_demand": avg_demand,
         }
-        return stats
 
     def plot_customers(self):
         """
-        Plot customer locations on a 2D scatter plot.
-        The depot is highlighted in red and other customers in blue.
+        Plot customer locations on a 2D scatter plot, highlighting the depot.
         """
         if self.customers_df is None:
             raise ValueError("Customer data not loaded. Call load_data() first.")
-
         plt.figure(figsize=(8, 8))
         depot = self.customers_df[self.customers_df["ID"] == 0]
         customers = self.customers_df[self.customers_df["ID"] != 0]
@@ -95,37 +84,36 @@ class CustomerAnalyzer:
         plt.grid(True)
         plt.show()
 
-    def cluster_customers(self, n_clusters):
+    def cluster_customers_hdbscan(self, min_cluster_size=5, min_samples=None):
         """
-        Cluster customers based on their (X, Y) coordinates using K-means.
+        Cluster customers using HDBSCAN, which automatically determines the number of clusters.
 
-        :param n_clusters: Number of clusters to form.
-        :return: A tuple (labels, centroids), where 'labels' is an array of cluster assignments
-                 for each customer (excluding depot) and 'centroids' is the array of cluster centers.
+        :param min_cluster_size: The minimum size of clusters.
+        :param min_samples: The minimum samples in a neighborhood for a point to be a core point.
+                            If None, defaults to min_cluster_size.
+        :return: A tuple (labels, clusterer, n_clusters) where:
+                 - labels: Array of cluster assignments for each customer (excluding depot).
+                 - clusterer: The fitted HDBSCAN clusterer object.
+                 - n_clusters: Number of clusters found (ignoring noise labeled as -1).
 
-        Citation: This approach is inspired by Mourelo Ferrandez et al. (2016), p. 377, lines 10-15.
+        Citation: Inspired by McInnes et al. (2017), "HDBSCAN: Hierarchical Density Based Clustering".
         """
         if self.customers_df is None:
             raise ValueError("Customer data not loaded. Call load_data() first.")
-
-        # Exclude depot for clustering
         df = self.customers_df[self.customers_df["ID"] != 0]
         coords = df[["X", "Y"]].values
-
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        labels = kmeans.fit_predict(coords)
-        centroids = kmeans.cluster_centers_
-        return labels, centroids
+        clusterer = hdbscan.HDBSCAN(
+            min_cluster_size=min_cluster_size, min_samples=min_samples
+        )
+        labels = clusterer.fit_predict(coords)
+        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+        return labels, clusterer, n_clusters
 
     @staticmethod
     def orders_from_solomon_df(customers_df):
         """
-        Convert a Solomon dataset DataFrame into a list of orders for loading.
+        Convert a Solomon dataset DataFrame into a list of orders.
         Assumes the depot is the first row (ID == 0) and skips it.
-
-        Each order is a dictionary with:
-            - 'id': customer ID
-            - 'demand': customer's demand
 
         :param customers_df: Pandas DataFrame with Solomon dataset columns including 'ID' and 'Demand'
         :return: List of order dictionaries.
@@ -133,65 +121,67 @@ class CustomerAnalyzer:
         orders_df = customers_df[customers_df["ID"] != 0]
         orders = []
         for _, row in orders_df.iterrows():
-            orders.append(
-                {
-                    "id": int(row["ID"]),
-                    "demand": int(row["Demand"]),
-                    # Optionally, add coordinates if needed later: "X": row["X"], "Y": row["Y"]
-                }
-            )
+            orders.append({"id": int(row["ID"]), "demand": int(row["Demand"])})
         return orders
+
+    def plot_clusters(self, labels):
+        """
+        Plot customer clusters using provided cluster labels.
+        Noise points (label = -1) are plotted in black.
+
+        :param labels: Array-like cluster labels for each customer (excluding depot).
+        """
+        if self.customers_df is None:
+            raise ValueError("Customer data not loaded. Call load_data() first.")
+        df = self.customers_df[self.customers_df["ID"] != 0].copy()
+        df["Cluster"] = labels
+        plt.figure(figsize=(8, 8))
+        unique_labels = set(labels)
+        colors = plt.cm.Spectral(np.linspace(0, 1, len(unique_labels)))
+        for k, col in zip(unique_labels, colors):
+            class_member_mask = df["Cluster"] == k
+            if k == -1:
+                col = [0, 0, 0, 1]  # Black for noise
+                label_text = "Noise"
+            else:
+                label_text = f"Cluster {k}"
+            xy = df[class_member_mask][["X", "Y"]]
+            plt.scatter(
+                xy["X"], xy["Y"], c=[col], label=label_text, edgecolor="k", s=50
+            )
+        plt.title("Customer Clusters (HDBSCAN)")
+        plt.xlabel("X Coordinate")
+        plt.ylabel("Y Coordinate")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
 
 
 if __name__ == "__main__":
-    # Usage Example for CustomerAnalyzer
-    file_path = "dataset/c101.txt"  # Path to the Solomon dataset
+    # Usage Example for CustomerAnalyzer with HDBSCAN clustering
+    import sys
+    import os
 
+    sys.path.append(os.getcwd())
+
+    file_path = "dataset/c101.txt"
     analyzer = CustomerAnalyzer(file_path)
-
-    # Load data
     df = analyzer.load_data()
     print("Customer data loaded. Sample:")
     print(df.head())
 
-    # Compute statistics
     stats = analyzer.compute_statistics()
     print("\n--- Customer Statistics ---")
     print(f"Total Demand: {stats['total_demand']}")
     print(f"Number of Customers (excluding depot): {stats['num_customers']}")
     print(f"Average Demand per Customer: {stats['avg_demand']:.2f}")
 
-    # Plot customer locations
     analyzer.plot_customers()
 
-    # Cluster customers into, say, 5 clusters
-    n_clusters = 5
-    labels, centroids = analyzer.cluster_customers(n_clusters)
-    print("\nCluster Labels for Customers:")
-    print(labels)
-    print("\nCluster Centroids (X, Y):")
-    print(centroids)
-
-    # Optionally, plot clustering results
-    import matplotlib.pyplot as plt
-
-    df_customers = df.copy()
-    df_customers["Cluster"] = labels
-    plt.figure(figsize=(8, 8))
-    for i in range(n_clusters):
-        cluster_points = df_customers[df_customers["Cluster"] == i]
-        plt.scatter(cluster_points["X"], cluster_points["Y"], label=f"Cluster {i}")
-    plt.scatter(
-        centroids[:, 0],
-        centroids[:, 1],
-        c="black",
-        marker="x",
-        s=100,
-        label="Centroids",
+    # Cluster customers using HDBSCAN
+    labels, clusterer, n_clusters = analyzer.cluster_customers_hdbscan(
+        min_cluster_size=5
     )
-    plt.title("Customer Clusters")
-    plt.xlabel("X Coordinate")
-    plt.ylabel("Y Coordinate")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    print(f"\nHDBSCAN found {n_clusters} clusters (noise labeled as -1).")
+
+    analyzer.plot_clusters(labels)
