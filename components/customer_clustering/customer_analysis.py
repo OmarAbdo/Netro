@@ -109,6 +109,20 @@ class CustomerAnalyzer:
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         return labels, clusterer, n_clusters
 
+    def compute_cluster_demands(self, labels):
+        """
+        Compute the total demand for each cluster based on the provided labels.
+
+        :param labels: Array-like cluster labels for each customer (excluding depot).
+        :return: Dictionary mapping cluster label to total demand.
+        """
+        if self.customers_df is None:
+            raise ValueError("Customer data not loaded. Call load_data() first.")
+        df = self.customers_df[self.customers_df["ID"] != 0].copy()
+        df["Cluster"] = labels
+        cluster_demands = df.groupby("Cluster")["Demand"].sum().to_dict()
+        return cluster_demands
+
     @staticmethod
     def orders_from_solomon_df(customers_df):
         """
@@ -158,7 +172,6 @@ class CustomerAnalyzer:
 
 
 if __name__ == "__main__":
-    # Usage Example for CustomerAnalyzer with HDBSCAN clustering
     import sys
     import os
 
@@ -176,6 +189,7 @@ if __name__ == "__main__":
     print(f"Number of Customers (excluding depot): {stats['num_customers']}")
     print(f"Average Demand per Customer: {stats['avg_demand']:.2f}")
 
+    # Plot customer locations
     # analyzer.plot_customers()
 
     # Cluster customers using HDBSCAN
@@ -183,5 +197,10 @@ if __name__ == "__main__":
         min_cluster_size=5
     )
     print(f"\nHDBSCAN found {n_clusters} clusters (noise labeled as -1).")
-
     analyzer.plot_clusters(labels)
+
+    # Compute and print total demand per cluster
+    cluster_demands = analyzer.compute_cluster_demands(labels)
+    print("\n--- Cluster Demands ---")
+    for cluster, demand in cluster_demands.items():
+        print(f"Cluster {cluster}: Total Demand = {demand}")

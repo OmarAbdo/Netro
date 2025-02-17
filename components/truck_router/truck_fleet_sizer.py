@@ -23,7 +23,7 @@ sys.path.append(os.getcwd())
 
 import math
 from entities.truck import Truck
-from components.customer_analysis.customer_analysis import (
+from components.customer_clustering.customer_analysis import (
     CustomerAnalyzer,
 )  # CustomerAnalyzer as client
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     file_path = "dataset/c101.txt"
 
     # Create an instance of CustomerAnalyzer and load customer data
-    from components.customer_analysis.customer_analysis import CustomerAnalyzer
+    from components.customer_clustering.customer_analysis import CustomerAnalyzer
 
     analyzer = CustomerAnalyzer(file_path)
     customers_df = analyzer.load_data()
