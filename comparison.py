@@ -2,18 +2,18 @@
 Comparison Module
 -------------------
 This module compares the baseline truck-only routing solution with an advanced truck routing solution 
-that uses a clustering and multi-trip approach (with capacity-aware splitting) over cluster centroids 
-determined via HDBSCAN from the Solomon dataset.
+that uses a CVRP formulation over capacity-aware cluster centroids determined via HDBSCAN (and subsequent 
+capacitated splitting) from the Solomon dataset.
 
 Inspiration and References:
-    - Chen, S., et al. (2018), "An adaptive large neighborhood search heuristic for dynamic vehicle routing problems", 
+    - Chen, S., et al. (2018), "An adaptive large neighborhood search heuristic for dynamic vehicle routing problems",
       Computers and Electrical Engineering, 67, 596–607. (For ALNS framework; see p. 600, lines 5–15.)
     - Mourelo Ferrandez et al. (2016), "Optimization of a Truck-drone in Tandem Delivery Network Using K-means and Genetic Algorithm",
       JIEM, p. 377, lines 10–15. (For clustering-based fleet sizing ideas.)
     - Solomon, M.M. (1987), "Algorithms for the Vehicle Routing and Scheduling Problems with Time Window Constraints".
       (For baseline VRP formulations.)
       
-This module outputs metrics (total distance, travel time, cost, CO₂ emissions) for both approaches for direct comparison.
+This module outputs metrics (total distance, travel time, cost, CO₂ emissions, runtime) for both approaches.
 """
 
 import sys
@@ -26,15 +26,15 @@ import matplotlib.pyplot as plt
 import time
 import math
 
-# Import baseline VRP solution (truck-only) from utils
+# Import baseline truck-only solution
 from baseline.truck_delivery_baseline import TruckDeliveryBaseline
 from entities.truck import Truck
 from utils.distance_matrix_calculator import DistanceMatrixCalculator
 
-# Import CustomerAnalyzer from our customer_clustering module (which now uses HDBSCAN)
+# Import CustomerAnalyzer (using HDBSCAN) from our customer_clustering module
 from components.customer_clustering.customer_analysis import CustomerAnalyzer
 
-# Import the updated TruckRouter from our truck_router module (advanced routing solution)
+# Import our updated TruckRouter (CVRP-based) from the truck_router module
 from components.truck_router.truck_router import TruckRouter
 
 
@@ -56,7 +56,6 @@ def compute_baseline_metrics(file_path, num_trucks):
 
     trucks = [Truck(truck_id=i) for i in range(num_trucks)]
 
-    # Solve baseline VRP using OR-Tools-based approach
     baseline_solver = TruckDeliveryBaseline(
         distance_matrix, trucks, demands, ready_times, due_times, service_times
     )
@@ -64,7 +63,6 @@ def compute_baseline_metrics(file_path, num_trucks):
     if result["routes"] is None:
         raise Exception("Baseline solver did not find a solution.")
 
-    # Calculate metrics
     total_distance = result["total_distance"]
     total_time = 0.0
     total_cost = 0.0
@@ -96,24 +94,26 @@ def compute_advanced_router_metrics(
     file_path,
     min_cluster_size=5,
     truck_capacity=200,
+    num_vehicles=25,
     truck_speed=60,
     cost_per_km=0.5,
     cost_per_hour=20,
     emissions_per_km=120,
 ):
     """
-    Compute metrics using the advanced truck routing solution.
+    Compute metrics using the advanced truck routing solution (CVRP-based).
     This function:
-        1. Loads customer data via CustomerAnalyzer.
-        2. Uses HDBSCAN to cluster customers and then applies capacity-aware splitting.
-        3. Computes cluster centroids and aggregate demands.
-        4. Solves a TSP (via OR-Tools) on the depot and the cluster centroids.
-        5. Splits the TSP route into multiple truck trips based on truck capacity.
-    The truck functions as a mobile depot for launching robots.
+        1. Loads customer data using CustomerAnalyzer.
+        2. Uses HDBSCAN to cluster customers and applies capacity-aware splitting.
+        3. Computes subcluster centroids and aggregate demands.
+        4. Constructs a CVRP data model (depot plus subcluster centroids with demands).
+        5. Solves the CVRP using OR-Tools.
+    The truck acts as a mobile depot for launching robots.
 
     :param file_path: Path to the Solomon dataset.
     :param min_cluster_size: Minimum cluster size for HDBSCAN.
     :param truck_capacity: Truck capacity.
+    :param num_vehicles: Number of vehicles available for the CVRP solver.
     :param truck_speed: Truck speed in km/h.
     :param cost_per_km: Cost per km.
     :param cost_per_hour: Cost per hour.
@@ -122,52 +122,40 @@ def compute_advanced_router_metrics(
     """
     start_time = time.time()
 
-    router = TruckRouter(file_path, min_cluster_size, truck_capacity)
+    # Instantiate TruckRouter (CVRP version)
+    router = TruckRouter(file_path, min_cluster_size, truck_capacity, num_vehicles)
     depot, final_labels, final_centroids, cluster_demands = router.load_cluster_data()
     print("Cluster Demands after Splitting (Advanced):", cluster_demands)
 
-    # Build nodes array: depot as first node, then subcluster centroids
+    # Build nodes: first node is depot, then subcluster centroids.
     nodes = np.vstack([depot, final_centroids])
 
-    # Build demands array: depot = 0, then for each subcluster label in sorted order
-    unique_labels = sorted(set(final_labels))
+    # Build demands array: depot = 0, then for each new subcluster label in sorted order.
+    unique_labels = sorted(cluster_demands.keys())
     demands = [0]
     for label in unique_labels:
         demands.append(cluster_demands[label])
     print("Demands for VRP (Depot then clusters):", demands)
 
-    # Compute distance matrix among nodes (depot + centroids)
-    distance_matrix = router.compute_distance_matrix(nodes)
-
-    # Solve TSP on these nodes (depot as start and end)
-    tsp_route = router.solve_tsp(distance_matrix)
-    if tsp_route is None:
+    data, nodes = router.create_vrp_data_model(depot, final_centroids, cluster_demands)
+    solution = router.solve_cvrp(data)
+    if solution["routes"] is None:
         return {
-            "time_sec": time.time() - start_time,
+            "runtime_sec": time.time() - start_time,
             "total_distance": math.inf,
             "status": "NoSolution",
         }
-    print("TSP Route (node indices):", tsp_route)
 
-    # Split TSP route into truck trips based on truck capacity
-    trips = router.split_tsp_route_into_trips(tsp_route, demands)
-    print("Truck Trips (each trip is a list of node indices):")
-    for trip in trips:
-        print(trip)
+    router.plot_truck_routes(solution["routes"], nodes)
 
-    # For consistency, total_distance is taken from the TSP route (you might also compute actual multi-trip distance)
-    total_distance = 0.0
-    for i in range(len(tsp_route) - 1):
-        total_distance += distance_matrix[tsp_route[i]][tsp_route[i + 1]]
-
+    total_distance = solution["total_distance"]
     end_time = time.time()
     total_time = total_distance / truck_speed
     total_cost = total_distance * cost_per_km + total_time * cost_per_hour
     total_emissions = total_distance * emissions_per_km
 
     metrics = {
-        "route": tsp_route,
-        "trips": trips,
+        "routes": solution["routes"],
         "total_distance": total_distance,
         "total_time": total_time,
         "total_cost": total_cost,
@@ -181,9 +169,6 @@ def compute_advanced_router_metrics(
 def print_comparison(baseline_metrics, advanced_metrics):
     """
     Print a side-by-side comparison of the baseline and advanced truck routing metrics.
-
-    :param baseline_metrics: Dictionary with metrics from the baseline solver.
-    :param advanced_metrics: Dictionary with metrics from the advanced truck routing solver.
     """
     print("\n--- Comparison Report ---\n")
     print(
@@ -212,8 +197,8 @@ def print_comparison(baseline_metrics, advanced_metrics):
 if __name__ == "__main__":
     file_path = "dataset/c101.txt"
 
-    # Compute baseline metrics using the baseline truck-only approach
-    num_trucks = 25  # as used in baseline
+    # Compute baseline metrics using the baseline truck-only approach.
+    num_trucks = 25
     baseline_metrics = compute_baseline_metrics(file_path, num_trucks)
     print("\n--- Baseline Truck-Only Routing Metrics ---")
     print(f"Total Distance: {baseline_metrics['total_distance']:.2f} km")
@@ -221,8 +206,10 @@ if __name__ == "__main__":
     print(f"Total Cost: {baseline_metrics['total_cost']:.2f}")
     print(f"Total CO₂ Emissions: {baseline_metrics['total_emissions']:.2f} grams")
 
-    # Compute advanced metrics using the advanced truck routing solution
-    advanced_metrics = compute_advanced_router_metrics(file_path)
+    # Compute advanced metrics using the advanced truck routing (CVRP-based) solution.
+    advanced_metrics = compute_advanced_router_metrics(
+        file_path, min_cluster_size=5, truck_capacity=200, num_vehicles=25
+    )
     print("\n--- Advanced Truck Routing Metrics (Truck as Mobile Depot) ---")
     print(f"Total Distance: {advanced_metrics['total_distance']:.2f} km")
     print(f"Total Time: {advanced_metrics['total_time']:.2f} hours")

@@ -1,3 +1,4 @@
+Advanced model: TSB
 Metric                       | Baseline (Truck-Only) | Advanced (Truck + Clusters)
 -----------------------------|-----------------------|-----------------------------
 Total Distance (km)          | 1013.00               | 309.47
@@ -5,6 +6,13 @@ Total Time (hours)           | 17.43                 | 5.16
 Total Cost                   | 871.53                | 257.89
 Total CO₂ Emissions (grams)  | 125500.97             | 37135.91
 
+Advanced model: CVRP
+Metric                       | Baseline (Truck-Only) | Advanced (Truck + Clusters)
+-----------------------------|-----------------------|-----------------------------
+Total Distance (km)          | 1013.00               | 857.00
+Total Time (hours)           | 17.43                 | 14.28
+Total Cost                   | 871.53                | 714.17
+Total CO₂ Emissions (grams)  | 125500.97             | 102840.00
 
 
 This approach is inspired by capacitated clustering methods discussed in the literature (see, e.g., Beasley (1990) for capacitated clustering ideas, and Mourelo Ferrandez et al. (2016), p. 377, lines 10–15, for clustering approaches).
