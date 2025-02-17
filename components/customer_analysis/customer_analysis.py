@@ -176,7 +176,7 @@ if __name__ == "__main__":
     print(f"Number of Customers (excluding depot): {stats['num_customers']}")
     print(f"Average Demand per Customer: {stats['avg_demand']:.2f}")
 
-    analyzer.plot_customers()
+    # analyzer.plot_customers()
 
     # Cluster customers using HDBSCAN
     labels, clusterer, n_clusters = analyzer.cluster_customers_hdbscan(
