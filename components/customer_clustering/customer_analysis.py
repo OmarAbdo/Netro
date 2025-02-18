@@ -4,10 +4,11 @@ CustomerAnalyzer Module
 This module implements the CustomerAnalyzer class to perform customer analysis on the Solomon dataset.
 It extracts key information such as total demand, distribution of customer locations, and performs clustering using HDBSCAN.
 HDBSCAN automatically determines the number of clusters based on the density of the data.
+However, this version reassigns any noise points (originally labeled as -1) to the nearest cluster, effectively disabling outlier labeling.
 
 Inspiration and References:
     - McInnes, L., Healy, J., & Astels, S. (2017), "HDBSCAN: Hierarchical Density Based Clustering", The Journal of Open Source Software.
-      (For robust, automatic cluster detection; see p. 2, lines 20–30.)
+      (For robust, automatic cluster detection; see p. 2, lines 20–30. The noise handling is modified here.)
     - Solomon, M.M. (1987), "Algorithms for the Vehicle Routing and Scheduling Problems with Time Window Constraints".
       (For basic dataset analysis and demand calculation.)
 """
@@ -27,6 +28,7 @@ class CustomerAnalyzer:
     """
     CustomerAnalyzer loads and analyzes customer data from a Solomon dataset.
     It computes statistics such as total demand and clusters customers based on geographic coordinates.
+    This version reassigns any noise points (originally labeled as -1) to the nearest cluster.
     """
 
     def __init__(self, file_path):
@@ -86,28 +88,58 @@ class CustomerAnalyzer:
 
     def cluster_customers_hdbscan(self, min_cluster_size=5, min_samples=None):
         """
-        Cluster customers using HDBSCAN, which automatically determines the number of clusters.
+        Cluster customers using HDBSCAN, then reassign any noise points (label -1)
+        to the nearest cluster so that all customers are assigned to a cluster.
 
         :param min_cluster_size: The minimum size of clusters.
         :param min_samples: The minimum samples in a neighborhood for a point to be a core point.
                             If None, defaults to min_cluster_size.
         :return: A tuple (labels, clusterer, n_clusters) where:
-                 - labels: Array of cluster assignments for each customer (excluding depot).
+                 - labels: Array of cluster assignments for each customer (excluding depot), with no -1 labels.
                  - clusterer: The fitted HDBSCAN clusterer object.
-                 - n_clusters: Number of clusters found (ignoring noise labeled as -1).
-
-        Citation: Inspired by McInnes et al. (2017), "HDBSCAN: Hierarchical Density Based Clustering".
+                 - n_clusters: Number of clusters found (after reassignment).
         """
         if self.customers_df is None:
             raise ValueError("Customer data not loaded. Call load_data() first.")
         df = self.customers_df[self.customers_df["ID"] != 0]
         coords = df[["X", "Y"]].values
+
+        # Perform initial clustering with HDBSCAN.
         clusterer = hdbscan.HDBSCAN(
             min_cluster_size=min_cluster_size, min_samples=min_samples
         )
-        labels = clusterer.fit_predict(coords)
-        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-        return labels, clusterer, n_clusters
+        initial_labels = clusterer.fit_predict(coords)
+        # Count clusters (ignoring noise)
+        n_clusters = len(set(initial_labels)) - (1 if -1 in initial_labels else 0)
+        print(f"HDBSCAN initially found {n_clusters} clusters (noise labeled as -1).")
+
+        # Reassign noise points (label -1) to the nearest non-noise cluster.
+        # First, compute centroids for clusters with non -1 labels.
+        valid_indices = np.where(initial_labels != -1)[0]
+        if len(valid_indices) > 0:
+            valid_coords = coords[valid_indices]
+            valid_labels = initial_labels[valid_indices]
+            unique_labels = np.unique(valid_labels)
+            centroids = {}
+            for label in unique_labels:
+                centroids[label] = valid_coords[valid_labels == label].mean(axis=0)
+            # For each noise point, assign the label of the nearest centroid.
+            for idx, label in enumerate(initial_labels):
+                if label == -1:
+                    point = coords[idx]
+                    distances = {
+                        lab: np.linalg.norm(point - centroids[lab])
+                        for lab in unique_labels
+                    }
+                    nearest_label = min(distances, key=distances.get)
+                    initial_labels[idx] = nearest_label
+        else:
+            # If all points are noise, assign them all to cluster 0.
+            initial_labels = np.zeros_like(initial_labels)
+
+        # After reassignment, count clusters.
+        final_n_clusters = len(set(initial_labels))
+        return initial_labels, clusterer, final_n_clusters
 
     def compute_cluster_demands(self, labels):
         """
@@ -141,7 +173,7 @@ class CustomerAnalyzer:
     def plot_clusters(self, labels):
         """
         Plot customer clusters using provided cluster labels.
-        Noise points (label = -1) are plotted in black.
+        All customers are treated equally (noise points have been reassigned).
 
         :param labels: Array-like cluster labels for each customer (excluding depot).
         """
@@ -153,20 +185,15 @@ class CustomerAnalyzer:
         unique_labels = set(labels)
         colors = plt.cm.Spectral(np.linspace(0, 1, len(unique_labels)))
         for k, col in zip(unique_labels, colors):
-            class_member_mask = df["Cluster"] == k
-            if k == -1:
-                col = [0, 0, 0, 1]  # Black for noise
-                label_text = "Noise"
-            else:
-                label_text = f"Cluster {k}"
-            xy = df[class_member_mask][["X", "Y"]]
+            label_text = f"Cluster {k}"
+            xy = df[df["Cluster"] == k][["X", "Y"]]
             plt.scatter(
                 xy["X"], xy["Y"], c=[col], label=label_text, edgecolor="k", s=50
             )
-        plt.title("Customer Clusters (HDBSCAN)")
+        plt.title("Customer Clusters (HDBSCAN with Outlier Reassignment)")
         plt.xlabel("X Coordinate")
         plt.ylabel("Y Coordinate")
-        plt.legend()
+        plt.legend(loc="best")
         plt.grid(True)
         plt.show()
 
@@ -189,14 +216,14 @@ if __name__ == "__main__":
     print(f"Number of Customers (excluding depot): {stats['num_customers']}")
     print(f"Average Demand per Customer: {stats['avg_demand']:.2f}")
 
-    # Plot customer locations
+    # Optionally, plot customer locations
     # analyzer.plot_customers()
 
-    # Cluster customers using HDBSCAN
+    # Cluster customers using HDBSCAN (with outlier reassignment)
     labels, clusterer, n_clusters = analyzer.cluster_customers_hdbscan(
         min_cluster_size=5
     )
-    print(f"\nHDBSCAN found {n_clusters} clusters (noise labeled as -1).")
+    print(f"\nHDBSCAN (modified) found {n_clusters} clusters (all customers assigned).")
     analyzer.plot_clusters(labels)
 
     # Compute and print total demand per cluster

@@ -1,45 +1,26 @@
-Advanced model: TSB
+ارجع اكتب تاني اليوميات
+اكتب مشاكل الشغل
+اقرا في ال dbt
+
+
+Total Distance: 2893 Truck router
+Total Distance Traveled: 3682 Baseline # 21% improvement
+Best Total Distance: 2893 conclusion (meta-huerstics are too complix for a simple routing such as main depot-to-subclusters)
+
+
 Metric                       | Baseline (Truck-Only) | Advanced (Truck + Clusters)
 -----------------------------|-----------------------|-----------------------------
-Total Distance (km)          | 1013.00               | 309.47
-Total Time (hours)           | 17.43                 | 5.16
-Total Cost                   | 871.53                | 257.89
-Total CO₂ Emissions (grams)  | 125500.97             | 37135.91
+Total Distance (km)          | 3682.00               | 2893.00 
+Total Time (hours)           | 62.53                 | 48.22
+Total Cost                   | 3126.46               | 2410.83 
+Total CO₂ Emissions (grams)  | 450210.22             | 347160.00
+Runtime (sec)                | N/A                   | 44.45
 
-Advanced model: CVRP
-Metric                       | Baseline (Truck-Only) | Advanced (Truck + Clusters)
------------------------------|-----------------------|-----------------------------
-Total Distance (km)          | 1013.00               | 857.00
-Total Time (hours)           | 17.43                 | 14.28
-Total Cost                   | 871.53                | 714.17
-Total CO₂ Emissions (grams)  | 125500.97             | 102840.00
+The model is saving around ~22% on most metrics!
 
-
-This approach is inspired by capacitated clustering methods discussed in the literature (see, e.g., Beasley (1990) for capacitated clustering ideas, and Mourelo Ferrandez et al. (2016), p. 377, lines 10–15, for clustering approaches).
+why radical outliers are not being displayed on the plot?
+  200     600        600         20        803        872         90
+  200     601        601         20        803        872         90
 
 
 
-2. Handling Inefficiencies (TSP Doesn’t Consider Capacity, Potential Over-Splitting)
-Right now, your code:
-
-Solves a TSP on subclusters ignoring capacity.
-Then slices the route based on capacity.
-This can lead to “spoke” or “star” routes where the truck repeatedly travels to a single cluster and returns. Two possible improvements:
-
-Incorporate a Capacity Constraint Directly into the TSP
-Instead of solving a pure TSP, you can solve a multi-vehicle VRP with capacity constraints. Each subcluster is a “customer” with demand, and the solver can decide how many times (or how many trucks) are needed. This might require an advanced approach like an ALNS or local search.
-
-References:
-Simoni et al. (2020, p. 67, lines 15–20) for local search–based improvements in a truck–robot scenario.
-Mourelo Ferrandez et al. (2016, p. 377, lines 10–15) for a genetic algorithm–based approach that includes capacity constraints.
-Adjust Subcluster Granularity
-If a subcluster’s demand is near the truck’s capacity, you’ll see short out-and-back trips. You could force subclusters to have a smaller demand (like half the truck capacity). This leads to more subclusters, but each with lower demand, allowing the TSP solver to combine them in one route. Then you slice them less frequently.
-
-For example, in the CapacitatedClusterSplitter, you could define a parameter “max_subcluster_demand” that’s half your truck capacity, so each subcluster’s demand is smaller.
-This helps the TSP solver combine multiple subclusters in a single trip, potentially reducing the star-like pattern.
-Local Search/ALNS:
-You could do something like this:
-
-Build an initial solution using your TSP approach + route splitting.
-Then apply local search operators (e.g., merging two trips if feasible, reordering trips, or reassigning subclusters between trips) to reduce total distance or time.
-Simoni et al. (2020) uses a local search to fine-tune a truck–robot routing plan. Mourelo Ferrandez et al. (2016) suggests a genetic algorithm that can handle capacity constraints in a more integrated manner.
