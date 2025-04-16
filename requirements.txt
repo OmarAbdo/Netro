@@ -1,6 +1,9 @@
-pandas
-gurobipy
-ortools
-hdbscan
-matplotlib
-numpy
+numpy>=1.20.0
+pandas>=1.3.0
+matplotlib>=3.4.0
+ortools>=9.4.0
+hdbscan>=0.8.29
+scikit-learn>=1.0.0
+python-dotenv>=0.19.0
+tqdm>=4.62.0
+pathlib>=1.0.1
