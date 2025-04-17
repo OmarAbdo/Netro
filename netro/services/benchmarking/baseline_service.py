@@ -16,16 +16,23 @@ class BaselineTruckService:
 
     where:
     - N: number of customers
+
+    Based on:
+    Solomon, M.M. (1987), "Algorithms for the Vehicle Routing and Scheduling Problems with Time Window Constraints".
     """
 
-    def __init__(self, routing_algorithm: RoutingAlgorithm):
+    def __init__(
+        self, routing_algorithm: RoutingAlgorithm, driver_hourly_cost: float = 15.0
+    ):
         """
         Initialize the baseline truck service.
 
         Args:
             routing_algorithm: Algorithm to use for truck routing.
+            driver_hourly_cost: Hourly cost for truck drivers in EUR.
         """
         self.routing_algorithm = routing_algorithm
+        self.driver_hourly_cost = driver_hourly_cost
 
     def solve(
         self, depot: Location, customers: List[Location], trucks: List[Truck]
@@ -108,7 +115,9 @@ class BaselineTruckService:
         total_cost = 0.0
         total_emissions = 0.0
         total_service_time = 0.0
+        total_driver_cost = 0.0
         truck_utilization = []
+        route_times = []
 
         for i, route in enumerate(routes):
             if not route:
@@ -136,9 +145,28 @@ class BaselineTruckService:
                     # Default service time if not specified
                     service_time += 5.0  # 5 minutes per customer
 
-            route_time = travel_time + service_time
-            route_cost = truck.calculate_trip_cost(route_distance, route_time)
-            route_emissions = truck.calculate_emissions(route_distance)
+            # Convert service time from minutes to hours
+            service_time_hours = service_time / 60.0
+
+            # Calculate total route time
+            route_time = travel_time + service_time_hours
+            route_times.append(route_time)
+
+            # Calculate driver cost - new metric
+            driver_cost = route_time * self.driver_hourly_cost
+            total_driver_cost += driver_cost
+
+            # Calculate other metrics
+            route_cost = (
+                truck.calculate_trip_cost(route_distance, route_time)
+                if hasattr(truck, "calculate_trip_cost")
+                else route_distance * 0.5
+            )
+            route_emissions = (
+                truck.calculate_emissions(route_distance)
+                if hasattr(truck, "calculate_emissions")
+                else route_distance * 120.0
+            )
 
             # Calculate truck utilization
             route_demand = sum(locations[loc_idx].demand for loc_idx in route[1:-1])
@@ -149,7 +177,7 @@ class BaselineTruckService:
             total_time += route_time
             total_cost += route_cost
             total_emissions += route_emissions
-            total_service_time += service_time
+            total_service_time += service_time_hours
             truck_utilization.append(utilization)
 
         # Compute averages
@@ -166,8 +194,10 @@ class BaselineTruckService:
             "service_time": total_service_time,
             "total_cost": total_cost,
             "total_emissions": total_emissions,
+            "total_driver_cost": total_driver_cost,
             "avg_truck_utilization": avg_utilization,
             "num_trucks_used": len(routes),
+            "route_times": route_times,
         }
 
         return metrics
