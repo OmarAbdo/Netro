@@ -188,49 +188,49 @@ class RobotRoutingService:
         robots: List[Robot],
     ) -> Tuple[List[List[int]], Dict[str, float]]:
         """
-        Create simple routes as fallback when routing algorithm fails.
+        Create simple but REALISTIC routes as fallback when routing algorithm fails.
 
-        Args:
-            distance_matrix: Matrix of distances between locations.
-            demands: Array of demands for each location.
-            capacities: Array of robot capacities.
-            robots: List of robots.
-
-        Returns:
-            Tuple containing:
-            - List of robot routes.
-            - Dictionary with metrics.
+        KEY FIX: Distribute customers among robots for PARALLEL operation.
         """
         routes = []
         remaining_customers = list(range(1, len(demands)))  # Skip centroid (index 0)
 
-        # Distribute customers among robots
+        print(f"Fallback: {len(remaining_customers)} customers, {len(robots)} robots")
+
+        # Simple distribution: give each robot a fair share of customers
+        customers_per_robot = len(remaining_customers) // len(robots)
+        extra_customers = len(remaining_customers) % len(robots)
+
+        customer_idx = 0
         for robot_idx, robot in enumerate(robots):
-            if not remaining_customers:
+            if customer_idx >= len(remaining_customers):
                 break
 
             route = [0]  # Start at centroid
             current_load = 0
+            customers_for_this_robot = customers_per_robot + (
+                1 if robot_idx < extra_customers else 0
+            )
 
-            # Add customers to route until capacity is reached
-            i = 0
-            while i < len(remaining_customers):
-                customer_idx = remaining_customers[i]
-                customer_demand = demands[customer_idx]
+            # Add customers to this robot's route up to its capacity
+            customers_added = 0
+            while (
+                customer_idx < len(remaining_customers)
+                and customers_added < customers_for_this_robot
+            ):
 
-                # If adding this customer would exceed capacity, skip it
-                if current_load + customer_demand > robot.capacity:
-                    i += 1
-                    continue
+                customer_location_idx = remaining_customers[customer_idx]
+                customer_demand = demands[customer_location_idx]
 
-                # Add customer to route
-                route.append(customer_idx)
-                current_load += customer_demand
-                remaining_customers.pop(i)  # Remove from remaining customers
-
-                # If we've reached capacity, stop adding customers
-                if current_load >= robot.capacity:
-                    break
+                # Check capacity constraint
+                if current_load + customer_demand <= robot.capacity:
+                    route.append(customer_location_idx)
+                    current_load += customer_demand
+                    customers_added += 1
+                    customer_idx += 1
+                else:
+                    # Skip this customer if it exceeds capacity
+                    customer_idx += 1
 
             # Return to centroid
             route.append(0)
@@ -238,68 +238,26 @@ class RobotRoutingService:
             # Only add route if it visits at least one customer
             if len(route) > 2:
                 routes.append(route)
+                print(
+                    f"Robot {robot_idx}: route length={len(route)-2}, demand={current_load:.1f}/{robot.capacity}"
+                )
 
-        # If we still have customers but no more robots, create additional routes
-        # by reusing robots in round-robin fashion
-        robot_idx = 0
-        safety_counter = 0
-        max_iterations = 100  # Prevent infinite loops
-
-        while remaining_customers and safety_counter < max_iterations:
-            safety_counter += 1
-
-            # Get the next robot
-            robot = robots[robot_idx % len(robots)]
-
-            route = [0]  # Start at centroid
-            current_load = 0
-            customer_added = False
-
-            # Add customers to route until capacity is reached
-            i = 0
-            while i < len(remaining_customers):
-                customer_idx = remaining_customers[i]
-                customer_demand = demands[customer_idx]
-
-                # If adding this customer would exceed capacity, skip it
-                if current_load + customer_demand > robot.capacity:
-                    i += 1
-                    continue
-
-                # Add customer to route
-                route.append(customer_idx)
-                current_load += customer_demand
-                remaining_customers.pop(i)  # Remove from remaining customers
-                customer_added = True
-
-                # If we've reached capacity, stop adding customers
-                if current_load >= robot.capacity:
-                    break
-
-            # If we couldn't add any customers, break to avoid infinite loop
-            if not customer_added:
-                print(f"No customers could be added to route, breaking loop")
-                break
-
-            # Return to centroid
-            route.append(0)
-
-            # Only add route if it visits at least one customer
-            if len(route) > 2:
-                routes.append(route)
-
-            robot_idx += 1
+        print(
+            f"Created {len(routes)} robot routes covering {sum(len(r)-2 for r in routes)} customers"
+        )
 
         # Calculate metrics for the created routes
         metrics = self._calculate_metrics(routes, distance_matrix, robots)
-
         return routes, metrics
 
     def _calculate_metrics(
         self, routes: List[List[int]], distance_matrix: np.ndarray, robots: List[Robot]
     ) -> Dict[str, float]:
         """
-        Calculate metrics for robot routes.
+        Calculate metrics for robot routes with CORRECTED parallel operation logic.
+
+        The key insight: robots operate in PARALLEL within a cluster.
+        Driver waits for the SLOWEST robot, not the sum of all robot times.
 
         Args:
             routes: List of robot routes.
@@ -307,15 +265,13 @@ class RobotRoutingService:
             robots: List of robots.
 
         Returns:
-            Dictionary with metrics.
+            Dictionary with metrics including proper parallel time calculation.
         """
         total_robot_distance = 0.0
         robot_times = []
 
         for i, route in enumerate(routes):
-            if (
-                not route or len(route) <= 2
-            ):  # Skip empty routes or routes with just centroid
+            if not route or len(route) <= 2:  # Skip empty routes
                 continue
 
             # Get the robot for this route
@@ -328,30 +284,48 @@ class RobotRoutingService:
             )
             total_robot_distance += route_distance
 
-            # Calculate route time
-            travel_time = route_distance / robot.speed
-            service_time = 0.0  # Add customer service times if available
-            launch_time = self.robot_launch_time
-            recovery_time = self.robot_recovery_time
-            recharge_time = 0.0
+            # Calculate route time components
+            travel_time = route_distance / robot.speed  # Hours
 
-            # Add recharge time if needed based on battery consumption
-            if travel_time > robot.battery_capacity:
+            # Service time per customer (convert to hours)
+            num_customers = len(route) - 2  # Exclude centroid start and end
+            service_time = num_customers * 5.0 / 60.0  # 5 minutes per customer
+
+            # Launch and recovery time (convert to hours)
+            launch_time = self.robot_launch_time / 60.0
+            recovery_time = self.robot_recovery_time / 60.0
+
+            # Recharge time if needed
+            recharge_time = 0.0
+            battery_capacity_hours = robot.battery_capacity / 60.0  # Convert to hours
+            if travel_time > battery_capacity_hours:
                 recharge_time = (
-                    travel_time - robot.battery_capacity
+                    travel_time - battery_capacity_hours
                 ) * self.recharge_time_factor
 
-            # Total time for this robot's operation
+            # Total time for this robot's complete operation
             robot_time = (
                 travel_time + service_time + launch_time + recovery_time + recharge_time
             )
             robot_times.append(robot_time)
 
-        # Metrics
+        # CORRECTED: In parallel operation, driver waits for the SLOWEST robot
+        # This is the key fix - robots work in parallel!
+        max_robot_time = max(robot_times) if robot_times else 0.0
+
+        # Convert max_robot_time to minutes for cluster operations
+        max_robot_time_minutes = max_robot_time * 60.0
+
+        print(
+            f"Robot metrics: individual_times={[f'{t:.2f}h' for t in robot_times]}, max_time={max_robot_time:.2f}h"
+        )
+
         metrics = {
             "total_robot_distance": total_robot_distance,
-            "max_robot_time": max(robot_times) if robot_times else 0.0,
-            "total_time": sum(robot_times),
+            "max_robot_time": max_robot_time_minutes,  # Convert back to minutes for compatibility
+            "total_time": sum(robot_times),  # Sequential sum for reference only
+            "individual_robot_times": robot_times,
+            "num_active_robots": len(robot_times),
         }
 
         return metrics

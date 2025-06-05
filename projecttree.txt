@@ -1,138 +1,97 @@
-Netro/
-┣ netro/
-┃ ┣ components/
-┃ ┃ ┣ customer_clustering/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┣ capacitated_clustering.cpython-312.pyc
-┃ ┃ ┃ ┃ ┗ customer_analysis.cpython-312.pyc
-┃ ┃ ┃ ┣ capacitated_clustering.py
-┃ ┃ ┃ ┗ customer_analysis.py
-┃ ┃ ┣ order_resender/
-┃ ┃ ┣ robot_router/
-┃ ┃ ┣ smart_loader/
-┃ ┃ ┃ ┗ smart_loader.py
-┃ ┃ ┣ truck_router/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┗ truck_router.cpython-312.pyc
-┃ ┃ ┃ ┣ alns_truck_router.py
-┃ ┃ ┃ ┣ local_search_truck_router.py
-┃ ┃ ┃ ┣ truck_fleet_sizer.py
-┃ ┃ ┃ ┗ truck_router.py
-┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┗ __init__.cpython-312.pyc
-┃ ┃ ┗ __init__.py
-┃ ┣ config/
-┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┣ default.cpython-312.pyc
-┃ ┃ ┃ ┗ env.cpython-312.pyc
-┃ ┃ ┣ default.py
-┃ ┃ ┗ env.py
-┃ ┣ core/
-┃ ┃ ┣ entities/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┣ cluster.cpython-312.pyc
-┃ ┃ ┃ ┃ ┣ location.cpython-312.pyc
-┃ ┃ ┃ ┃ ┗ vehicle.cpython-312.pyc
-┃ ┃ ┃ ┣ cluster.py
-┃ ┃ ┃ ┣ location.py
-┃ ┃ ┃ ┣ route.py
-┃ ┃ ┃ ┗ vehicle.py
-┃ ┃ ┣ interfaces/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┣ clustering.cpython-312.pyc
-┃ ┃ ┃ ┃ ┗ routing.cpython-312.pyc
-┃ ┃ ┃ ┣ clustering.py
-┃ ┃ ┃ ┗ routing.py
-┃ ┃ ┗ value_objects/
-┃ ┣ dataset/
-┃ ┃ ┣ c101 200.txt
-┃ ┃ ┣ c101 noouts.txt
-┃ ┃ ┣ c101.txt
-┃ ┃ ┣ c201.txt
-┃ ┃ ┣ homberger_1000_customer_instances.zip
-┃ ┃ ┣ homberger_400_customer_instances.zip
-┃ ┃ ┗ solomon-100.zip
-┃ ┣ infrastructure/
-┃ ┃ ┣ io/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┗ solomon_reader.cpython-312.pyc
-┃ ┃ ┃ ┗ solomon_reader.py
-┃ ┃ ┣ persistence/
-┃ ┃ ┗ visualization/
-┃ ┃   ┣ __pycache__/
-┃ ┃ ┃ ┃ ┗ solution_visualizer.cpython-312.pyc
-┃ ┃   ┗ solution_visualizer.py
-┃ ┣ netro.egg-info/
-┃ ┃ ┣ dependency_links.txt
-┃ ┃ ┣ entry_points.txt
-┃ ┃ ┣ PKG-INFO
-┃ ┃ ┣ SOURCES.txt
-┃ ┃ ┗ top_level.txt
-┃ ┣ output/
-┃ ┃ ┗ c101_20250416_210208/
-┃ ┃   ┣ baseline_routes.png
-┃ ┃   ┣ clusters.png
-┃ ┃   ┣ comparison.png
-┃ ┃   ┣ netro_solution.png
-┃ ┃   ┗ report.md
-┃ ┣ services/
-┃ ┃ ┣ benchmarking/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┣ baseline_service.cpython-312.pyc
-┃ ┃ ┃ ┃ ┗ comparison_service.cpython-312.pyc
-┃ ┃ ┃ ┣ baseline_service.py
-┃ ┃ ┃ ┗ comparison_service.py
-┃ ┃ ┣ clustering/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┣ capacitated_splitter.cpython-312.pyc
-┃ ┃ ┃ ┃ ┣ cluster_service.cpython-312.pyc
-┃ ┃ ┃ ┃ ┗ hdbscan_clustering.cpython-312.pyc
-┃ ┃ ┃ ┣ capacitated_splitter.py
-┃ ┃ ┃ ┣ cluster_service.py
-┃ ┃ ┃ ┗ hdbscan_clustering.py
-┃ ┃ ┣ optimization/
-┃ ┃ ┣ robot_deployment/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┗ smart_loader.cpython-312.pyc
-┃ ┃ ┃ ┗ smart_loader.py
-┃ ┃ ┣ routing/
-┃ ┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┃ ┣ local_search.cpython-312.pyc
-┃ ┃ ┃ ┃ ┣ netro_routing_service.cpython-312.pyc
-┃ ┃ ┃ ┃ ┣ ortools_cvrp.cpython-312.pyc
-┃ ┃ ┃ ┃ ┗ robot_routing_service.cpython-312.pyc
-┃ ┃ ┃ ┣ local_search.py
-┃ ┃ ┃ ┣ netro_routing_service.py
-┃ ┃ ┃ ┣ ortools_cvrp.py
-┃ ┃ ┃ ┗ robot_routing_service.py
-┃ ┃ ┗ simulation/
-┃ ┣ utils/
-┃ ┃ ┣ __pycache__/
-┃ ┃ ┃ ┣ distance_matrix_calculator.cpython-312.pyc
-┃ ┃ ┃ ┣ truck_delivery_baseline.cpython-312.pyc
-┃ ┃ ┃ ┗ __init__.cpython-312.pyc
-┃ ┃ ┣ distance_matrix_calculator.py
-┃ ┃ ┗ __init__.py
+netro/
+┣ config/
 ┃ ┣ __pycache__/
-┃ ┃ ┣ application.cpython-312.pyc
-┃ ┃ ┣ main.cpython-312.pyc
-┃ ┃ ┗ __init__.cpython-312.pyc
-┃ ┣ application.py
-┃ ┣ main.py
-┃ ┗ __init__.py
+┃ ┃ ┣ default.cpython-312.pyc
+┃ ┃ ┗ env.cpython-312.pyc
+┃ ┣ default.py
+┃ ┗ env.py
+┣ core/
+┃ ┣ entities/
+┃ ┃ ┣ __pycache__/
+┃ ┃ ┃ ┣ cluster.cpython-312.pyc
+┃ ┃ ┃ ┣ location.cpython-312.pyc
+┃ ┃ ┃ ┗ vehicle.cpython-312.pyc
+┃ ┃ ┣ cluster.py
+┃ ┃ ┣ location.py
+┃ ┃ ┣ route.py
+┃ ┃ ┗ vehicle.py
+┃ ┗ interfaces/
+┃   ┣ __pycache__/
+┃ ┃ ┃ ┣ clustering.cpython-312.pyc
+┃ ┃ ┃ ┗ routing.cpython-312.pyc
+┃   ┣ clustering.py
+┃   ┗ routing.py
+┣ dataset/
+┃ ┣ c101 200.txt
+┃ ┣ c101 noouts.txt
+┃ ┣ c101.txt
+┃ ┣ c201.txt
+┃ ┣ homberger_1000_customer_instances.zip
+┃ ┣ homberger_400_customer_instances.zip
+┃ ┗ solomon-100.zip
+┣ infrastructure/
+┃ ┣ io/
+┃ ┃ ┣ __pycache__/
+┃ ┃ ┃ ┗ solomon_reader.cpython-312.pyc
+┃ ┃ ┗ solomon_reader.py
+┃ ┗ visualization/
+┃   ┣ __pycache__/
+┃ ┃ ┃ ┗ solution_visualizer.cpython-312.pyc
+┃   ┗ solution_visualizer.py
 ┣ netro.egg-info/
 ┃ ┣ dependency_links.txt
 ┃ ┣ entry_points.txt
 ┃ ┣ PKG-INFO
-┃ ┣ requires.txt
 ┃ ┣ SOURCES.txt
 ┃ ┗ top_level.txt
 ┣ output/
-┃ ┗ c101_20250416_205621/
+┣ services/
+┃ ┣ benchmarking/
+┃ ┃ ┣ __pycache__/
+┃ ┃ ┃ ┣ baseline_service.cpython-312.pyc
+┃ ┃ ┃ ┗ comparison_service.cpython-312.pyc
+┃ ┃ ┣ baseline_service.py
+┃ ┃ ┗ comparison_service.py
+┃ ┣ clustering/
+┃ ┃ ┣ __pycache__/
+┃ ┃ ┃ ┣ capacitated_splitter.cpython-312.pyc
+┃ ┃ ┃ ┣ cluster_service.cpython-312.pyc
+┃ ┃ ┃ ┗ hdbscan_clustering.cpython-312.pyc
+┃ ┃ ┣ capacitated_splitter.py
+┃ ┃ ┣ cluster_service.py
+┃ ┃ ┗ hdbscan_clustering.py
+┃ ┣ robot_deployment/
+┃ ┃ ┣ __pycache__/
+┃ ┃ ┃ ┗ smart_loader.cpython-312.pyc
+┃ ┃ ┗ smart_loader.py
+┃ ┗ routing/
+┃   ┣ __pycache__/
+┃ ┃ ┃ ┣ cluster_route_handler.cpython-312.pyc
+┃ ┃ ┃ ┣ local_search.cpython-312.pyc
+┃ ┃ ┃ ┣ netro_routing_service.cpython-312.pyc
+┃ ┃ ┃ ┣ ortools_cvrp.cpython-312.pyc
+┃ ┃ ┃ ┣ robot_routing_service.cpython-312.pyc
+┃ ┃ ┃ ┗ truck_route_planner.cpython-312.pyc
+┃   ┣ cluster_route_handler.py
+┃   ┣ local_search.py
+┃   ┣ netro_routing_service.py
+┃   ┣ ortools_cvrp.py
+┃   ┣ robot_routing_service.py
+┃   ┗ truck_route_planner.py
+┣ utils/
+┃ ┣ distance_calculator/
+┃ ┃ ┗ distance_matrix_calculator.py
+┃ ┣ optimization/
+┃ ┃ ┗ advanced_location_optimizer.py
+┃ ┣ __pycache__/
+┃ ┃ ┣ distance_matrix_calculator.cpython-312.pyc
+┃ ┃ ┣ truck_delivery_baseline.cpython-312.pyc
+┃ ┃ ┗ __init__.cpython-312.pyc
+┃ ┗ __init__.py
 ┣ __pycache__/
 ┃ ┣ application.cpython-312.pyc
-┃ ┗ main.cpython-312.pyc
-┣ projecttree.txt
-┣ readme.md
-┣ requirements.txt
-┗ setup.py
+┃ ┣ main.cpython-312.pyc
+┃ ┗ __init__.cpython-312.pyc
+┣ application.py
+┣ main.py
+┗ __init__.py

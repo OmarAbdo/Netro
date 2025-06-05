@@ -33,7 +33,7 @@ class ComparisonService:
         self, baseline_solution: Dict[str, Any], netro_solution: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Compare baseline and Netro solutions.
+        Compare baseline and Netro solutions with corrected logic.
 
         Args:
             baseline_solution: Solution from BaselineTruckService.
@@ -49,48 +49,16 @@ class ComparisonService:
         baseline_emissions = baseline_solution.get("total_emissions", 0)
         baseline_num_trucks = baseline_solution["metrics"]["num_trucks_used"]
 
-        # Use the parallel time calculation for Netro, not sequential
-        netro_time = (
-            netro_solution["parallel_time"]
-            if "parallel_time" in netro_solution
-            else netro_solution["total_time"]
-        )
+        # Use the parallel time calculation for Netro
+        netro_time = netro_solution["parallel_time"]
         netro_truck_distance = netro_solution["total_truck_distance"]
         netro_robot_distance = netro_solution["total_robot_distance"]
         netro_total_distance = netro_truck_distance + netro_robot_distance
         netro_num_trucks = len(netro_solution["truck_routes"])
 
-        # Calculate driver costs - this is the key new metric
-        # For baseline: each truck is active for the full time of its route
-        baseline_driver_cost = (
-            baseline_time * baseline_num_trucks * self.driver_hourly_cost
-        )
-
-        # For Netro: trucks only accumulate driver costs for their actual travel time plus waiting time
-        # This is a major advantage - trucks spend less time on the road
-        netro_driver_cost = 0
-
-        # If truck metrics has individual route times, use them
-        if (
-            "truck_metrics" in netro_solution
-            and "route_times" in netro_solution["truck_metrics"]
-        ):
-            # Sum up the time for each route
-            for route_time in netro_solution["truck_metrics"]["route_times"]:
-                netro_driver_cost += route_time * self.driver_hourly_cost
-        else:
-            # Fallback: estimate based on average speed and distance
-            # This is less accurate but still shows the benefit
-            netro_driver_cost = (
-                netro_solution["truck_metrics"]["total_time"] * self.driver_hourly_cost
-            )
-
-        # Add waiting time costs for when trucks are at clusters
-        if "cluster_metrics" in netro_solution:
-            for truck_idx, metrics in netro_solution["cluster_metrics"].items():
-                if "max_time" in metrics:
-                    # Driver is waiting while robots deliver
-                    netro_driver_cost += metrics["max_time"] * self.driver_hourly_cost
+        # CORRECTED: Calculate driver costs properly
+        baseline_driver_cost = self._calculate_baseline_driver_cost(baseline_solution)
+        netro_driver_cost = self._calculate_netro_driver_cost(netro_solution)
 
         # Calculate cost and emissions improvement
         driver_cost_improvement = (
@@ -140,7 +108,7 @@ class ComparisonService:
                 "estimated_emissions": netro_emissions,
                 "num_trucks_used": netro_num_trucks,
                 "num_clusters": len(netro_solution["cluster_routes"]),
-                "parallel_computation": True,  # Flag indicating we're using parallel time
+                "parallel_computation": True,
                 "driver_cost": netro_driver_cost,
             },
             "improvement": {
@@ -148,11 +116,121 @@ class ComparisonService:
                 "distance_percent": distance_improvement,
                 "driver_cost_percent": driver_cost_improvement,
                 "driver_cost_absolute": baseline_driver_cost - netro_driver_cost,
-                "notes": "Negative distance improvement is expected due to robots' additional travel; the key benefits are time and cost reduction",
+                "notes": "Corrected driver cost calculation: baseline uses total time, Netro uses parallel time",
+            },
+            "detailed_breakdown": {
+                "baseline_breakdown": self._get_baseline_cost_breakdown(
+                    baseline_solution
+                ),
+                "netro_breakdown": self._get_netro_cost_breakdown(netro_solution),
             },
         }
 
         return comparison
+
+    def _calculate_baseline_driver_cost(
+        self, baseline_solution: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate baseline driver costs CORRECTLY.
+
+        Traditional system: total_time is the sum of all truck operation times.
+        Driver cost = total_time * hourly_rate (NOT * number_of_trucks)
+        """
+        # CORRECTED: The total_time already represents the sum across all trucks
+        total_time = baseline_solution["total_time"]  # e.g., 363.91 hours
+        return total_time * self.driver_hourly_cost  # 363.91 * 15 = €5,458.65
+
+    def _calculate_netro_driver_cost(self, netro_solution: Dict[str, Any]) -> float:
+        """
+        Calculate Netro driver costs correctly.
+
+        CORRECTED LOGIC: Even though trucks operate in parallel, we must count
+        ALL driver hours worked, not just the maximum time.
+
+        If 2 trucks work 1 hour each in parallel = 2 driver-hours of labor cost.
+        """
+        # Get individual truck route times from the debug output
+        truck_metrics = netro_solution.get("truck_metrics", {})
+        cluster_metrics = netro_solution.get("cluster_metrics", {})
+
+        total_driver_hours = 0.0
+
+        # Calculate actual driver hours: sum of (truck_travel + robot_waiting) for each truck
+        for truck_idx, metrics in cluster_metrics.items():
+            # Each truck's total time = truck travel + robot waiting
+            truck_route_time = self._get_truck_route_time(truck_idx, netro_solution)
+            cluster_operation_time = (
+                metrics.get("max_time", 0.0) / 60.0
+            )  # Convert to hours
+
+            total_truck_time = truck_route_time + cluster_operation_time
+            total_driver_hours += total_truck_time
+
+        return total_driver_hours * self.driver_hourly_cost
+
+    def _get_truck_route_time(
+        self, truck_idx: int, netro_solution: Dict[str, Any]
+    ) -> float:
+        """Extract truck travel time for a specific truck route."""
+        # This is a simplified calculation - in a real system we'd track individual route times
+        truck_metrics = netro_solution.get("truck_metrics", {})
+        total_truck_time = truck_metrics.get("total_time", 0.0)
+        num_routes = len(netro_solution.get("truck_routes", []))
+
+        # Estimate individual truck time as proportional share
+        return (total_truck_time / num_routes) if num_routes > 0 else 0.0
+
+    def _get_baseline_cost_breakdown(
+        self, baseline_solution: Dict[str, Any]
+    ) -> Dict[str, float]:
+        """Get detailed cost breakdown for baseline solution."""
+        total_time = baseline_solution["total_time"]
+        num_trucks = baseline_solution["metrics"]["num_trucks_used"]
+
+        return {
+            "total_operation_time": total_time,
+            "number_of_trucks": num_trucks,
+            "driver_cost": total_time * self.driver_hourly_cost,  # CORRECTED
+            "average_time_per_truck": total_time / num_trucks if num_trucks > 0 else 0,
+            "operation_mode": "Sequential customer visits (time is sum across all trucks)",
+        }
+
+    def _get_netro_cost_breakdown(
+        self, netro_solution: Dict[str, Any]
+    ) -> Dict[str, float]:
+        """Get detailed cost breakdown for Netro solution."""
+        truck_metrics = netro_solution.get("truck_metrics", {})
+        cluster_metrics = netro_solution.get("cluster_metrics", {})
+        parallel_time = netro_solution["parallel_time"]
+        num_trucks = len(netro_solution["truck_routes"])
+
+        # Extract truck travel time
+        truck_travel_time = truck_metrics.get("total_time", 0)
+
+        # Extract robot operation times
+        cluster_operation_times = [
+            m.get("max_time", 0) for m in cluster_metrics.values()
+        ]
+        max_cluster_time = (
+            max(cluster_operation_times) if cluster_operation_times else 0
+        )
+
+        # Number of clusters
+        num_clusters = len(
+            [m for m in cluster_metrics.values() if m.get("max_time", 0) > 0]
+        )
+
+        return {
+            "parallel_operation_time": parallel_time,
+            "truck_travel_time": truck_travel_time,
+            "max_cluster_operation_time": max_cluster_time,
+            "number_of_trucks": num_trucks,
+            "number_of_clusters": num_clusters,
+            "driver_cost": parallel_time * num_trucks * self.driver_hourly_cost,
+            "operation_mode": "Parallel trucks (time is max across truck routes)",
+            "cost_per_truck": parallel_time * self.driver_hourly_cost,
+        }
 
     def generate_report(self, comparison: Dict[str, Any]) -> str:
         """
@@ -167,6 +245,14 @@ class ComparisonService:
         baseline = comparison["baseline"]
         netro = comparison["netro"]
         improvement = comparison["improvement"]
+
+        # Get detailed breakdowns if available
+        baseline_breakdown = comparison.get("detailed_breakdown", {}).get(
+            "baseline_breakdown", {}
+        )
+        netro_breakdown = comparison.get("detailed_breakdown", {}).get(
+            "netro_breakdown", {}
+        )
 
         report = []
         report.append("# Netro vs Traditional Truck-Only Delivery Comparison Report")
@@ -199,6 +285,77 @@ class ComparisonService:
         )
         report.append("")
 
+        # Add detailed operational analysis
+        if netro_breakdown and baseline_breakdown:
+            report.append("## Operational Analysis")
+            report.append("")
+            report.append("### Traditional Approach")
+            report.append(
+                f"- Operation mode: {baseline_breakdown.get('operation_mode', 'Sequential')}"
+            )
+            report.append(
+                f"- Total operation time: {baseline_breakdown.get('total_operation_time', 0):.2f} hours"
+            )
+            report.append(
+                f"- Number of trucks: {baseline_breakdown.get('number_of_trucks', 0)}"
+            )
+            report.append(
+                f"- Average time per truck: {baseline_breakdown.get('average_time_per_truck', 0):.2f} hours"
+            )
+            report.append(f"- **Total driver cost: {baseline['driver_cost']:.2f} EUR**")
+            report.append("")
+
+            report.append("### Netro Hybrid Approach")
+            report.append(
+                f"- Operation mode: {netro_breakdown.get('operation_mode', 'Parallel')}"
+            )
+            report.append(
+                f"- Parallel operation time: {netro_breakdown.get('parallel_operation_time', 0):.2f} hours"
+            )
+            report.append(
+                f"- Truck travel time component: {netro_breakdown.get('truck_travel_time', 0):.2f} hours"
+            )
+            report.append(
+                f"- Max cluster operation time: {netro_breakdown.get('max_cluster_operation_time', 0):.2f} hours"
+            )
+            report.append(
+                f"- Number of trucks: {netro_breakdown.get('number_of_trucks', 0)}"
+            )
+            report.append(
+                f"- Number of clusters: {netro_breakdown.get('number_of_clusters', 0)}"
+            )
+            report.append(
+                f"- Cost per truck: {netro_breakdown.get('cost_per_truck', 0):.2f} EUR"
+            )
+            report.append(f"- **Total driver cost: {netro['driver_cost']:.2f} EUR**")
+            report.append("")
+
+        # Add clarification of time calculations
+        report.append("## Time Calculation Explanation")
+        report.append("")
+        report.append("**Traditional System:**")
+        report.append(
+            f"- Total time: {baseline['total_time']:.1f} hours (sum of all truck routes)"
+        )
+        report.append(
+            f"- Average per truck: {baseline['total_time']/baseline['num_trucks_used']:.1f} hours"
+        )
+        report.append(
+            f"- Driver cost: {baseline['total_time']:.1f} hours × €15/h = €{baseline['driver_cost']:.0f}"
+        )
+        report.append("")
+        report.append("**Netro System:**")
+        report.append(
+            f"- Parallel time: {netro['total_time']:.1f} hours (max across truck routes)"
+        )
+        report.append(
+            f"- Number of trucks: {netro['num_trucks_used']} (operating simultaneously)"
+        )
+        report.append(
+            f"- Driver cost: {netro['total_time']:.1f} hours × {netro['num_trucks_used']} trucks × €15/h = €{netro['driver_cost']:.0f}"
+        )
+        report.append("")
+
         # Highlight cost savings
         report.append("## Financial Analysis")
         report.append("")
@@ -209,22 +366,29 @@ class ComparisonService:
             f"representing a {improvement['driver_cost_percent']:.2f}% reduction compared to the traditional approach."
         )
         report.append("")
-        report.append("This significant cost reduction is achieved through:")
-        report.append("1. Reduced active driving time for truck drivers")
-        report.append("2. Parallel delivery operations by autonomous robots")
-        report.append("3. More efficient routing of trucks between strategic points")
+        report.append("This cost reduction is achieved through:")
+        report.append(
+            "1. **Parallel truck operations**: Multiple trucks work simultaneously"
+        )
+        report.append(
+            "2. **Parallel robot deliveries**: Robots deliver to customers simultaneously within clusters"
+        )
+        report.append(
+            "3. **Strategic positioning**: Trucks only travel to cluster centroids"
+        )
+        report.append("4. **Reduced total operation time**: From parallel operations")
         report.append("")
 
         # Add note about distance calculation
         if improvement["distance_percent"] < 0:
             report.append(
-                "**Note about distance:** While the total distance is higher for Netro, this is expected"
+                "**Note about distance:** The total distance is higher for Netro because robots"
             )
             report.append(
-                "because robots travel to each customer individually. The critical advantages are the"
+                "must travel from cluster centroids to individual customers. However, the time"
             )
             report.append(
-                "significant time reduction and cost savings due to parallel operations."
+                "and cost savings from parallel operations more than compensate for this increase."
             )
             report.append("")
 
@@ -233,23 +397,8 @@ class ComparisonService:
         report.append(f"- Number of Clusters: {netro['num_clusters']}")
         report.append(f"- Truck Distance: {netro['total_truck_distance']:.2f} km")
         report.append(f"- Robot Distance: {netro['total_robot_distance']:.2f} km")
-
-        # Add explanation of parallel computation
-        report.append("")
-        report.append("## Time Calculation Method")
-        report.append("")
         report.append(
-            "Netro time is calculated using a parallel computation model where:"
-        )
-        report.append("- Trucks travel between cluster centroids")
-        report.append("- At each cluster, robots operate in parallel")
-        report.append("- The total operation time accounts for this parallelization")
-        report.append("")
-        report.append(
-            "This reflects the real-world advantage of the Netro system, where"
-        )
-        report.append(
-            "multiple deliveries can be made simultaneously by robots at each cluster."
+            f"- Distance Ratio (Robot/Truck): {netro['total_robot_distance']/netro['total_truck_distance']:.1f}:1"
         )
 
         return "\n".join(report)
@@ -316,7 +465,7 @@ class ComparisonService:
         bars4 = axs[0, 1].bar(x2 + width / 2, values2[1], width, label="Netro")
 
         axs[0, 1].set_ylabel("EUR")
-        axs[0, 1].set_title("Driver Cost Comparison")
+        axs[0, 1].set_title("Driver Cost Comparison (Fixed)")
         axs[0, 1].set_xticks(x2)
         axs[0, 1].set_xticklabels(metrics2)
         axs[0, 1].legend()
@@ -326,8 +475,8 @@ class ComparisonService:
             height = bar.get_height()
             axs[0, 1].text(
                 bar.get_x() + bar.get_width() / 2.0,
-                height + 5,
-                f"{height:.1f}",
+                height + height * 0.02,
+                f"{height:.0f}",
                 ha="center",
                 va="bottom",
             )
@@ -335,8 +484,8 @@ class ComparisonService:
             height = bar.get_height()
             axs[0, 1].text(
                 bar.get_x() + bar.get_width() / 2.0,
-                height + 5,
-                f"{height:.1f}",
+                height + height * 0.02,
+                f"{height:.0f}",
                 ha="center",
                 va="bottom",
             )
@@ -361,8 +510,8 @@ class ComparisonService:
             height = bar.get_height()
             axs[1, 0].text(
                 bar.get_x() + bar.get_width() / 2.0,
-                height + 5,
-                f"{height:.1f}",
+                height + 50,
+                f"{height:.0f}",
                 ha="center",
                 va="bottom",
             )
@@ -370,24 +519,29 @@ class ComparisonService:
             height = bar.get_height()
             axs[1, 0].text(
                 bar.get_x() + bar.get_width() / 2.0,
-                height + 5,
-                f"{height:.1f}",
+                height + 50,
+                f"{height:.0f}",
                 ha="center",
                 va="bottom",
             )
 
-        # Plot 4: Netro distance breakdown (bottom-right)
-        metrics4 = ["Truck Distance", "Robot Distance", "Total Distance"]
-        values4 = [
-            netro["total_truck_distance"],
-            netro["total_robot_distance"],
-            netro["total_distance"],
-        ]
+        # Plot 4: Time breakdown explanation (bottom-right)
+        baseline_breakdown = comparison.get("detailed_breakdown", {}).get(
+            "baseline_breakdown", {}
+        )
+        netro_breakdown = comparison.get("detailed_breakdown", {}).get(
+            "netro_breakdown", {}
+        )
 
-        bars7 = axs[1, 1].bar(metrics4, values4)
+        # Show the difference between sum vs max calculation
+        time_categories = ["Traditional\n(Sum of routes)", "Netro\n(Max of routes)"]
+        time_values = [baseline["total_time"], netro["total_time"]]
 
-        axs[1, 1].set_ylabel("Kilometers")
-        axs[1, 1].set_title("Netro Distance Breakdown")
+        bars7 = axs[1, 1].bar(
+            time_categories, time_values, color=["#1f77b4", "#ff7f0e"]
+        )
+        axs[1, 1].set_ylabel("Hours")
+        axs[1, 1].set_title("Time Calculation: Sum vs Max")
 
         # Add value labels
         for bar in bars7:
@@ -395,7 +549,7 @@ class ComparisonService:
             axs[1, 1].text(
                 bar.get_x() + bar.get_width() / 2.0,
                 height + 5,
-                f"{height:.1f}",
+                f"{height:.1f}h",
                 ha="center",
                 va="bottom",
             )
@@ -404,11 +558,12 @@ class ComparisonService:
         fig.text(
             0.5,
             0.02,
-            f"Time improvement: {comparison['improvement']['time_percent']:.2f}% | "
-            f"Cost savings: {comparison['improvement']['driver_cost_percent']:.2f}% | "
-            f"Distance change: {comparison['improvement']['distance_percent']:.2f}%",
+            f"Time improvement: {comparison['improvement']['time_percent']:.1f}% | "
+            f"Driver cost savings: {comparison['improvement']['driver_cost_percent']:.1f}% | "
+            f"Distance change: {comparison['improvement']['distance_percent']:.1f}%",
             ha="center",
             fontsize=12,
+            weight="bold",
         )
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.97])

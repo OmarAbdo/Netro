@@ -49,13 +49,6 @@ class ClusterRouteHandler:
         Returns:
             Dictionary with cluster routes, metrics, and list of assigned clusters.
         """
-        # Build a list of all locations (depot + centroids)
-        all_locations = [
-            next(iter(centroids.values())).coordinates()
-        ]  # Placeholder for depot
-        for centroid in centroids.values():
-            all_locations.append(centroid)
-
         # Initialize result dictionaries
         cluster_routes = {}
         cluster_metrics = {}
@@ -70,8 +63,8 @@ class ClusterRouteHandler:
             truck_route_metrics = {
                 "cluster_times": [],
                 "total_robot_distance": 0.0,
-                "total_time": 0.0,
-                "max_time": 0.0,  # Track maximum time for parallel operation
+                "total_time": 0.0,  # Sequential sum for reference
+                "max_time": 0.0,  # CORRECTED: Track maximum time for parallel operation
             }
 
             # Get the truck and robots for this route
@@ -124,17 +117,28 @@ class ClusterRouteHandler:
                     # Store the robot routes for this cluster
                     cluster_routes[cluster_id] = robot_routes
 
-                    # Update metrics
-                    cluster_time = (
-                        self.robot_unloading_time + robot_metrics["max_robot_time"]
+                    # CORRECTED: Calculate cluster operation time
+                    # Driver waits for unloading + maximum robot time (parallel operation)
+                    robot_parallel_time_hours = (
+                        robot_metrics["max_robot_time"] / 60.0
+                    )  # Convert minutes to hours
+                    unloading_time_hours = (
+                        self.robot_unloading_time / 60.0
+                    )  # Convert minutes to hours
+                    cluster_operation_time = (
+                        unloading_time_hours + robot_parallel_time_hours
                     )
-                    truck_route_metrics["cluster_times"].append(cluster_time)
+
+                    # Update metrics
+                    truck_route_metrics["cluster_times"].append(cluster_operation_time)
                     truck_route_metrics["total_robot_distance"] += robot_metrics[
                         "total_robot_distance"
                     ]
-                    truck_route_metrics["total_time"] += cluster_time
+                    # For sequential reference (sum of all cluster times)
+                    truck_route_metrics["total_time"] += cluster_operation_time
+                    # For parallel operation (maximum cluster time in this route)
                     truck_route_metrics["max_time"] = max(
-                        truck_route_metrics["max_time"], cluster_time
+                        truck_route_metrics["max_time"], cluster_operation_time
                     )
 
                 except Exception as e:
@@ -245,13 +249,18 @@ class ClusterRouteHandler:
             # Store the robot routes for this cluster
             additional_cluster_routes[cluster_id] = robot_routes
 
-            # Track metrics for this cluster
-            cluster_time = self.robot_unloading_time + robot_metrics["max_robot_time"]
+            # CORRECTED: Track metrics for this cluster with proper parallel time
+            robot_parallel_time_hours = (
+                robot_metrics["max_robot_time"] / 60.0
+            )  # Convert to hours
+            unloading_time_hours = self.robot_unloading_time / 60.0  # Convert to hours
+            cluster_operation_time = unloading_time_hours + robot_parallel_time_hours
+
             additional_cluster_metrics[route_idx] = {
-                "cluster_times": [cluster_time],
+                "cluster_times": [cluster_operation_time],
                 "total_robot_distance": robot_metrics["total_robot_distance"],
-                "total_time": cluster_time,
-                "max_time": cluster_time,  # For a single cluster, max = total
+                "total_time": cluster_operation_time,  # For a single cluster, total = max
+                "max_time": cluster_operation_time,  # Maximum time for parallel operation
             }
 
             next_truck_idx += 1

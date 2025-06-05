@@ -111,16 +111,15 @@ class BaselineTruckService:
             Dictionary with metrics.
         """
         total_distance = 0.0
-        total_time = 0.0
+        total_time = 0.0  # This will be the SUM of all route times
         total_cost = 0.0
         total_emissions = 0.0
         total_service_time = 0.0
-        total_driver_cost = 0.0
         truck_utilization = []
         route_times = []
 
         for i, route in enumerate(routes):
-            if not route:
+            if not route or len(route) <= 2:  # Skip empty routes
                 continue
 
             # Get the truck for this route
@@ -152,10 +151,6 @@ class BaselineTruckService:
             route_time = travel_time + service_time_hours
             route_times.append(route_time)
 
-            # Calculate driver cost - new metric
-            driver_cost = route_time * self.driver_hourly_cost
-            total_driver_cost += driver_cost
-
             # Calculate other metrics
             route_cost = (
                 truck.calculate_trip_cost(route_distance, route_time)
@@ -172,9 +167,9 @@ class BaselineTruckService:
             route_demand = sum(locations[loc_idx].demand for loc_idx in route[1:-1])
             utilization = route_demand / truck.capacity
 
-            # Update totals
+            # Update totals - CORRECTED: total_time is sum of all route times
             total_distance += route_distance
-            total_time += route_time
+            total_time += route_time  # Sum of all individual route times
             total_cost += route_cost
             total_emissions += route_emissions
             total_service_time += service_time_hours
@@ -189,15 +184,18 @@ class BaselineTruckService:
 
         metrics = {
             "total_distance": total_distance,
-            "total_time": total_time,
+            "total_time": total_time,  # Sum across all truck routes
             "travel_time": total_time - total_service_time,
             "service_time": total_service_time,
             "total_cost": total_cost,
             "total_emissions": total_emissions,
-            "total_driver_cost": total_driver_cost,
             "avg_truck_utilization": avg_utilization,
-            "num_trucks_used": len(routes),
-            "route_times": route_times,
+            "num_trucks_used": len([r for r in routes if len(r) > 2]),
+            "route_times": route_times,  # Individual route times for reference
         }
+
+        print(
+            f"Baseline metrics: total_time={total_time:.2f}h, route_times={[f'{t:.1f}' for t in route_times]}"
+        )
 
         return metrics

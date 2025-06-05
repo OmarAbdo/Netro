@@ -15,12 +15,12 @@ class NetroRoutingService:
     Orchestrates the truck routing to clusters and robot delivery within clusters.
 
     This service implements the Netro formula:
-    T(Netro) = K * (t(travel-cluster) + t(unloading)) + [M/R * (t(travel-robot-customer) + t(robot-service)) + t(recovery)]
+    T(Netro) = max_over_trucks(t(truck_travel) + t(robot_operations_parallel))
 
     where:
-    - K: number of clusters
-    - M: customers per cluster
-    - R: robots per cluster
+    - Multiple trucks operate simultaneously on different routes
+    - Within each cluster, robots operate in parallel
+    - Driver waits for all robots to return before moving to next cluster
     """
 
     def __init__(
@@ -120,25 +120,16 @@ class NetroRoutingService:
                     additional_results["cluster_metrics"]
                 )
 
-        # Calculate metrics with parallel time consideration
-        total_truck_time = truck_metrics["total_time"]
+        # Calculate metrics with proper parallel time consideration
+        # FIXED: Calculate parallel time correctly - trucks operate simultaneously
+        parallel_time = self._calculate_parallel_time(
+            truck_routes, cluster_results["cluster_metrics"], trucks, depot, centroids
+        )
 
-        # Calculate parallel time - this is a key fix
-        # In each route, robots work in parallel, so we take the maximum robot time per route
-        parallel_time = 0
-        for truck_idx, metrics in cluster_results["cluster_metrics"].items():
-            # For each truck route, add truck travel time + maximum cluster operation time
-            route_idx = min(truck_idx, len(truck_routes) - 1) if truck_routes else 0
-            if route_idx < len(truck_routes) and len(truck_routes[route_idx]) > 2:
-                # Get truck time for this route
-                truck_route_time = self._calculate_truck_route_time(
-                    truck_routes[route_idx],
-                    trucks[min(truck_idx, len(trucks) - 1)],
-                    depot,
-                    centroids,
-                )
-                # Add max cluster time for this route (parallel robot operation)
-                parallel_time += truck_route_time + metrics.get("max_time", 0)
+        # Calculate sequential time for comparison
+        sequential_time = truck_metrics["total_time"] + sum(
+            m.get("total_time", 0) for m in cluster_results["cluster_metrics"].values()
+        )
 
         # Create the complete solution
         solution = {
@@ -146,13 +137,9 @@ class NetroRoutingService:
             "cluster_routes": cluster_results["cluster_routes"],
             "truck_metrics": truck_metrics,
             "cluster_metrics": cluster_results["cluster_metrics"],
-            "total_time": parallel_time,
+            "total_time": parallel_time,  # This is the realistic total time
             "parallel_time": parallel_time,
-            "sequential_time": total_truck_time
-            + sum(
-                m.get("total_time", 0)
-                for m in cluster_results["cluster_metrics"].values()
-            ),
+            "sequential_time": sequential_time,
             "total_truck_distance": truck_metrics["total_distance"],
             "total_robot_distance": sum(
                 m.get("total_robot_distance", 0)
@@ -161,6 +148,63 @@ class NetroRoutingService:
         }
 
         return solution
+
+    def _calculate_parallel_time(
+        self,
+        truck_routes: List[List[int]],
+        cluster_metrics: Dict[int, Dict[str, float]],
+        trucks: List[Truck],
+        depot: Location,
+        centroids: Dict[int, Location],
+    ) -> float:
+        """
+        Calculate the total time for parallel truck operations.
+
+        CORRECTED: For each truck route, calculate truck_travel_time + robot_operation_time
+        Then take the maximum across all routes (since trucks operate in parallel).
+
+        Args:
+            truck_routes: List of truck routes
+            cluster_metrics: Metrics for cluster operations
+            trucks: List of trucks
+            depot: Depot location
+            centroids: Dictionary of centroids
+
+        Returns:
+            Maximum time among all truck routes (parallel operation)
+        """
+        route_times = []
+
+        for truck_idx, route in enumerate(truck_routes):
+            if len(route) <= 2:  # Skip routes that only visit depot
+                continue
+
+            # Calculate truck travel time for this specific route
+            truck = trucks[min(truck_idx, len(trucks) - 1)]
+            truck_travel_time = self._calculate_actual_truck_route_time(
+                route, truck, depot, centroids
+            )
+
+            # Get robot operation time for this truck's clusters
+            # This should be the time spent at clusters, not additional travel
+            cluster_operation_time = 0.0
+            if truck_idx in cluster_metrics:
+                metrics = cluster_metrics[truck_idx]
+                # Use max_time (parallel robot operation within clusters)
+                cluster_operation_time = metrics.get("max_time", 0.0)
+
+            # CORRECTED: Total time for this truck = travel time + cluster operation time
+            total_route_time = truck_travel_time + cluster_operation_time
+            route_times.append(total_route_time)
+
+            print(
+                f"Truck {truck_idx}: Travel={truck_travel_time:.2f}h, Cluster={cluster_operation_time:.2f}h, Total={total_route_time:.2f}h"
+            )
+
+        # Since trucks operate in parallel, total time is the maximum route time
+        max_time = max(route_times) if route_times else 0.0
+        print(f"Parallel time calculation: max({route_times}) = {max_time:.2f}h")
+        return max_time
 
     def _create_centroid_mappings(
         self, clusters: List[Cluster], centroids: Dict[int, Location]
@@ -204,7 +248,7 @@ class NetroRoutingService:
 
         return centroid_idx_to_cluster_id, cluster_id_to_centroid_idx
 
-    def _calculate_truck_route_time(
+    def _calculate_actual_truck_route_time(
         self,
         route: List[int],
         truck: Truck,
@@ -212,7 +256,7 @@ class NetroRoutingService:
         centroids: Dict[int, Location],
     ) -> float:
         """
-        Calculate time for a truck route.
+        Calculate time for a specific truck route by actually tracing the route.
 
         Args:
             route: List of location indices in the route
@@ -226,20 +270,34 @@ class NetroRoutingService:
         if len(route) <= 2:  # Only depot
             return 0.0
 
-        # Create list of actual locations
-        locations = [depot]
-        for idx in route[1:-1]:  # Skip depot at start and end
-            # Find the centroid for this route index
-            # This is a simplification; in a real system we'd need a more robust lookup
-            for centroid in centroids.values():
-                locations.append(centroid)
-                break
-        locations.append(depot)  # Return to depot
-
-        # Calculate total distance
         total_distance = 0.0
-        for i in range(len(locations) - 1):
-            total_distance += locations[i].distance_to(locations[i + 1])
+        current_location = depot
 
-        # Calculate time
-        return total_distance / truck.speed
+        # Calculate distance for each segment of the route
+        for i in range(1, len(route) - 1):  # Skip depot at start and end
+            route_idx = route[i]
+
+            # Find the actual centroid for this route index
+            # We need to map route indices back to actual centroids
+            next_location = None
+
+            # Try to find centroid by matching route index to centroid
+            centroid_list = list(centroids.values())
+            if route_idx - 1 < len(centroid_list):
+                next_location = centroid_list[route_idx - 1]
+            else:
+                # Fallback: use the first available centroid
+                next_location = next(iter(centroids.values())) if centroids else depot
+
+            if next_location and next_location != current_location:
+                segment_distance = current_location.distance_to(next_location)
+                total_distance += segment_distance
+                current_location = next_location
+
+        # Return to depot
+        if current_location != depot:
+            total_distance += current_location.distance_to(depot)
+
+        # Calculate time based on truck speed
+        travel_time = total_distance / truck.speed
+        return travel_time
