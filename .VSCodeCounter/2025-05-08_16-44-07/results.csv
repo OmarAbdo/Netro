@@ -1,0 +1,42 @@
+"filename", "language", "pip requirements", "Python", "Markdown", "comment", "blank", "total"
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\__init__.py", "Python", 0, 1, 0, 1, 1, 3
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\application.py", "Python", 0, 346, 0, 30, 70, 446
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\__init__.py", "Python", 0, 0, 0, 0, 1, 1
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\customer_clustering\capacitated_clustering.py", "Python", 0, 164, 0, 15, 27, 206
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\customer_clustering\customer_analysis.py", "Python", 0, 192, 0, 11, 31, 234
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\order_resender\order_resender.py", "Python", 0, 144, 0, 21, 42, 207
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\smart_loader\smart_loader.py", "Python", 0, 74, 0, 7, 19, 100
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\alns_truck_router.py", "Python", 0, 0, 0, 1, 1, 2
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\local_search_truck_router.py", "Python", 0, 256, 0, 3, 30, 289
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\truck_fleet_sizer.py", "Python", 0, 104, 0, 10, 35, 149
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\truck_router.py", "Python", 0, 156, 0, 0, 12, 168
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\config\default.py", "Python", 0, 49, 0, 6, 6, 61
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\config\env.py", "Python", 0, 65, 0, 11, 20, 96
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\cluster.py", "Python", 0, 48, 0, 1, 14, 63
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\location.py", "Python", 0, 21, 0, 1, 6, 28
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\route.py", "Python", 0, 43, 0, 1, 11, 55
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\vehicle.py", "Python", 0, 37, 0, 1, 13, 51
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\interfaces\clustering.py", "Python", 0, 51, 0, 1, 14, 66
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\interfaces\routing.py", "Python", 0, 58, 0, 1, 13, 72
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\infrastructure\io\solomon_reader.py", "Python", 0, 67, 0, 6, 14, 87
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\infrastructure\visualization\solution_visualizer.py", "Python", 0, 198, 0, 30, 53, 281
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\main.py", "Python", 0, 35, 0, 3, 15, 53
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\benchmarking\baseline_service.py", "Python", 0, 148, 0, 20, 36, 204
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\benchmarking\comparison_service.py", "Python", 0, 329, 0, 31, 57, 417
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\clustering\capacitated_splitter.py", "Python", 0, 80, 0, 15, 20, 115
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\clustering\cluster_service.py", "Python", 0, 60, 0, 6, 13, 79
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\clustering\hdbscan_clustering.py", "Python", 0, 77, 0, 11, 23, 111
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\optimization\advanced_location_optimizer.py", "Python", 0, 253, 0, 49, 77, 379
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\robot_deployment\smart_loader.py", "Python", 0, 94, 0, 11, 27, 132
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\cluster_route_handler.py", "Python", 0, 213, 0, 32, 47, 292
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\local_search.py", "Python", 0, 306, 0, 43, 86, 435
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\netro_routing_service.py", "Python", 0, 192, 0, 22, 32, 246
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\ortools_cvrp.py", "Python", 0, 98, 0, 10, 24, 132
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\robot_routing_service.py", "Python", 0, 259, 0, 34, 65, 358
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\truck_route_planner.py", "Python", 0, 171, 0, 25, 46, 242
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\utils\__init__.py", "Python", 0, 0, 0, 0, 1, 1
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\utils\distance_matrix_calculator.py", "Python", 0, 114, 0, 17, 34, 165
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\readme.md", "Markdown", 0, 0, 128, 0, 52, 180
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\requirements.txt", "pip requirements", 9, 0, 0, 0, 0, 9
+"d:\6 Viadrina\Robotics Thesis\Application\Netro\setup.py", "Python", 0, 15, 0, 1, 3, 19
+"Total", "-", 9, 4518, 128, 488, 1091, 6234

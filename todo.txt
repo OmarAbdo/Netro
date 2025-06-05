@@ -1,0 +1,7 @@
+1. Nothing in the configurations is limiting the number of trucks or robots that we have.
+   the number of trucks and robots is created in initialize_vehicles() in application.py
+
+2. run_clustering() is hardcoded to use HDBSCAN clustering only even though the configurations
+   allow for other clustering algorithms. 
+
+3. 

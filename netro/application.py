@@ -107,6 +107,7 @@ class NetroApplication:
         """
         # Create trucks
         truck_config = self.config["VEHICLES"]["truck"]
+        # Calculate number of trucks needed based on total demand
         num_trucks = max(
             1,
             int(
@@ -401,9 +402,7 @@ class NetroApplication:
             else:
                 plt.show()
 
-    def run_full_workflow(
-        self, dataset_name: str, save_visualizations: bool = True
-    ) -> Dict[str, Any]:
+    def run_full_workflow( self, dataset_name: str, save_visualizations: bool = True ) -> Dict[str, Any]:
         """
         Run the complete workflow: dataset loading, clustering, baseline, Netro, and comparison.
 
