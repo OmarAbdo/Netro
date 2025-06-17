@@ -134,7 +134,8 @@ class SolutionVisualizer:
         centroids: Dict[int, Location], 
         title: str = "Netro Hybrid Solution",
         last_resort_truck_routes: Optional[List[List[int]]] = None,
-        all_locations_list: Optional[List[Location]] = None 
+        all_locations_list: Optional[List[Location]] = None,
+        finally_unserved_customers: Optional[List[Location]] = None
     ) -> plt.Figure:
         """
         Plot the complete Netro solution.
@@ -195,7 +196,9 @@ class SolutionVisualizer:
                 route_points_y = [robot_route_locations_base[idx].y for idx in robot_route_indices if idx < len(robot_route_locations_base)]
                 
                 if route_points_x: 
-                    ax.plot(route_points_x, route_points_y, ".:", color=robot_cmap(j % robot_cmap.N), linewidth=1.5, markersize=4, alpha=0.8, label=f"Robot Route C{cluster_id}-{j+1}" if j==0 else None, zorder=2)
+                    # Label only one robot route type for legend clarity
+                    label_robot = "Robot Routes" if cluster_id == list(cluster_routes.keys())[0] and j == 0 else None
+                    ax.plot(route_points_x, route_points_y, ".:", color=robot_cmap(j % robot_cmap.N), linewidth=1.5, markersize=4, alpha=0.8, label=label_robot, zorder=2)
 
         if last_resort_truck_routes and all_locations_list:
             print(f"[VISUALIZER] Plotting {len(last_resort_truck_routes)} last-resort truck routes.")
@@ -205,21 +208,42 @@ class SolutionVisualizer:
                 route_actual_locations = [all_locations_list[idx] for idx in route_indices]
                 route_x = [loc.x for loc in route_actual_locations]
                 route_y = [loc.y for loc in route_actual_locations]
-
+                
+                # Label only one last-resort route type for legend
+                label_last_resort = "Last-Resort Truck Routes" if i == 0 else None
                 ax.plot(
                     route_x, route_y, 'x--', color=last_resort_cmap(i % last_resort_cmap.N), 
-                    linewidth=1.5, markersize=6, label=f"Last-Resort Truck Route {i+1}", zorder=4
+                    linewidth=1.5, markersize=6, label=label_last_resort, zorder=4
                 )
+                # Mark customers served by last-resort routes
                 for loc_idx in route_indices[1:-1]: 
-                    ax.scatter(all_locations_list[loc_idx].x, all_locations_list[loc_idx].y, marker='P', color=last_resort_cmap(i % last_resort_cmap.N), s=70, edgecolors='black', zorder=4, label="Last-Resort Customer" if loc_idx == route_indices[1] and i == 0 else None)
+                    label_lr_cust = "Last-Resort Served Customer" if i == 0 and loc_idx == route_indices[1] else None
+                    ax.scatter(all_locations_list[loc_idx].x, all_locations_list[loc_idx].y, marker='P', color=last_resort_cmap(i % last_resort_cmap.N), s=70, edgecolors='black', zorder=4, label=label_lr_cust)
 
+        # Plot finally unserved customers, if any
+        if finally_unserved_customers:
+            print(f"[VISUALIZER] Plotting {len(finally_unserved_customers)} finally unserved customers.")
+            unserved_x = [loc.x for loc in finally_unserved_customers]
+            unserved_y = [loc.y for loc in finally_unserved_customers]
+            if unserved_x: # Ensure there are points to plot
+                ax.scatter(unserved_x, unserved_y, marker='X', color='magenta', s=150, label="FINALLY UNSERVED", zorder=10, edgecolors='black')
 
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
         ax.set_title(title)
         handles, labels = ax.get_legend_handles_labels()
         by_label = dict(zip(labels, handles)) 
-        ax.legend(by_label.values(), by_label.keys(), loc="upper center", bbox_to_anchor=(0.5, -0.1), fancybox=True, shadow=True, ncol=3)
+        # Adjust ncol for potentially fewer unique legend entries
+        num_legend_items = len(by_label)
+        legend_cols = 1
+        if num_legend_items > 4:
+            legend_cols = 2
+        if num_legend_items > 8:
+            legend_cols = 3
+        if num_legend_items > 12:
+            legend_cols = 4
+
+        ax.legend(by_label.values(), by_label.keys(), loc="upper center", bbox_to_anchor=(0.5, -0.05 if num_legend_items <=8 else -0.1), fancybox=True, shadow=True, ncol=legend_cols, fontsize='small')
         ax.grid(True, alpha=0.3)
-        plt.tight_layout(rect=[0, 0.05, 1, 1]) 
+        plt.tight_layout(rect=[0, 0.03 if num_legend_items <=8 else 0.07, 1, 1]) # Adjust bottom margin for legend
         return fig

@@ -323,6 +323,8 @@ class NetroApplication:
                     print(f"[WARNING] Could not find customer list for cluster_identifier: {cluster_identifier} in last-resort routing.")
 
         unserved_customers = [cust for cust in all_dataset_customers if cust.id not in served_customer_ids]
+        
+        print(f"[DEBUG APP] Customers for last-resort ({len(unserved_customers)}): {[c.id for c in unserved_customers]}")
 
         if unserved_customers:
             print(f"[INFO] {len(unserved_customers)} customers initially unserved by Netro hybrid. Routing with last-resort trucks...")
@@ -343,8 +345,30 @@ class NetroApplication:
             if last_resort_solution and last_resort_solution.get('routes'):
                 num_newly_served = len(unserved_customers) - len(last_resort_solution.get('unserved_customers', []))
                 print(f"[INFO] Last-resort trucks served {num_newly_served} additional customers.")
+
+                # Remap last_resort_solution routes to global indices
+                original_lr_routes_indices = last_resort_solution.get('routes', [])
+                remapped_lr_routes_global_indices = []
+                if original_lr_routes_indices:
+                    # lr_input_customers is the 'unserved_customers' list passed to last_resort_truck_service.solve
+                    lr_input_customers_list = unserved_customers 
+                    # This was the list of locations BaselineTruckService operated on:
+                    lr_internal_all_locations = [self.depot] + lr_input_customers_list
+
+                    for lr_route_local_indices in original_lr_routes_indices:
+                        global_indices_for_route = []
+                        for local_idx in lr_route_local_indices:
+                            actual_location_object = lr_internal_all_locations[local_idx]
+                            try:
+                                global_idx = self.locations.index(actual_location_object)
+                                global_indices_for_route.append(global_idx)
+                            except ValueError:
+                                print(f"[ERROR APP] Critical: Location object from last-resort route not found in self.locations. ID: {actual_location_object.id}")
+                                # Decide on error handling: skip route, skip point, or raise
+                        if global_indices_for_route:
+                            remapped_lr_routes_global_indices.append(global_indices_for_route)
                 
-                self.netro_solution['last_resort_truck_routes'] = last_resort_solution['routes']
+                self.netro_solution['last_resort_truck_routes'] = remapped_lr_routes_global_indices
                 self.netro_solution['total_truck_distance'] += last_resort_solution['total_distance']
                 
                 last_resort_time = last_resort_solution['total_time']
@@ -364,16 +388,25 @@ class NetroApplication:
                 # but be mindful this might affect other calculations if not handled carefully.
                 # For now, keeping them separate in the solution dict is safer.
                 # self.netro_solution['truck_routes'].extend(last_resort_solution['routes'])
+                
+                # Store any customers still unserved after last-resort attempt
+                lr_unserved = last_resort_solution.get('unserved_customers', [])
+                print(f"[DEBUG APP] Last-resort unserved ({len(lr_unserved)}): {[c.id for c in lr_unserved]}")
+                self.netro_solution['finally_unserved_customers'] = lr_unserved
+                if self.netro_solution['finally_unserved_customers']:
+                    print(f"[WARNING] {len(self.netro_solution['finally_unserved_customers'])} customers STILL UNSERVED after last-resort attempt: {[c.id for c in self.netro_solution['finally_unserved_customers']]}")
             else:
                 print("[INFO] No last-resort truck routes generated or all unserved customers remained unserved by last-resort.")
                 self.netro_solution['last_resort_truck_routes'] = []
                 self.netro_solution['last_resort_truck_time'] = 0.0
                 self.netro_solution['total_time_with_last_resort'] = self.netro_solution['total_time']
+                self.netro_solution['finally_unserved_customers'] = unserved_customers # All previously unserved are still unserved
         else:
             print("[INFO] All customers served by initial Netro hybrid solution. No last-resort trucks needed.")
             self.netro_solution['last_resort_truck_routes'] = []
             self.netro_solution['last_resort_truck_time'] = 0.0
             self.netro_solution['total_time_with_last_resort'] = self.netro_solution['total_time']
+            self.netro_solution['finally_unserved_customers'] = [] # No unserved customers
         # --- END LAST-RESORT TRUCK ROUTING ---
 
         print(f"Final Netro solution (including last-resort if any):")
@@ -457,6 +490,8 @@ class NetroApplication:
             print("Visualizing Netro solution...")
             # Include last_resort_truck_routes if they exist
             last_resort_routes = self.netro_solution.get('last_resort_truck_routes', [])
+            finally_unserved_customers = self.netro_solution.get('finally_unserved_customers', [])
+            print(f"[DEBUG APP] Visualizing with finally_unserved_customers ({len(finally_unserved_customers)}): {[c.id for c in finally_unserved_customers]}")
             
             fig = visualizer.plot_netro_solution(
                 depot=self.depot,
@@ -465,8 +500,9 @@ class NetroApplication:
                 cluster_routes=self.netro_solution["cluster_routes"],
                 centroids=self.centroids,
                 title="Netro Hybrid Truck-Robot Solution",
-                last_resort_truck_routes=last_resort_routes, # Pass to visualizer
-                all_locations_list=self.locations # Pass the full locations list
+                last_resort_truck_routes=last_resort_routes, 
+                all_locations_list=self.locations,
+                finally_unserved_customers=finally_unserved_customers # Pass to visualizer
             )
             if save_path:
                 fig.savefig(

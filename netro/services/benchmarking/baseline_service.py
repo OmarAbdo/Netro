@@ -79,6 +79,30 @@ class BaselineTruckService:
             routes, distance_matrix, trucks, all_locations
         )
 
+        # Identify unserved customers
+        # all_locations includes depot at index 0, then customers
+        # routes contain indices relative to all_locations
+        input_customer_indices = set(range(1, len(all_locations))) # 0 is depot
+        served_customer_indices_in_routes = set()
+        for route in routes:
+            for node_idx in route[1:-1]: # Exclude depot at start/end of route
+                served_customer_indices_in_routes.add(node_idx)
+
+        unserved_customer_original_indices = input_customer_indices - served_customer_indices_in_routes
+        
+        # The 'customers' list passed to solve() are the original customer objects
+        # We need to map unserved_customer_original_indices (which are indices into all_locations)
+        # back to actual Location objects from the input 'customers' list.
+        # An index 'k' in unserved_customer_original_indices corresponds to all_locations[k],
+        # which in turn corresponds to customers[k-1] (because all_locations = [depot] + customers).
+        unserved_customer_objects = [customers[idx - 1] for idx in unserved_customer_original_indices if (idx -1) < len(customers)]
+
+        if unserved_customer_objects:
+            print(f"[BaselineTruckService] Identified {len(unserved_customer_objects)} unserved customers from its input.")
+            # for cust in unserved_customer_objects:
+            #     print(f"  Unserved: ID {cust.id}")
+
+
         # Create and return the complete solution
         solution = {
             "routes": routes,
@@ -87,6 +111,7 @@ class BaselineTruckService:
             "total_cost": metrics["total_cost"],
             "total_emissions": metrics["total_emissions"],
             "metrics": metrics,
+            "unserved_customers": unserved_customer_objects, # Add unserved customers
         }
 
         return solution

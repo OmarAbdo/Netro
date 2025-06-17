@@ -105,7 +105,7 @@ class ClusterRouteHandler:
 
                 # Route robots within this cluster
                 try:
-                    robot_routes, robot_metrics = (
+                    robot_routes, robot_metrics, _unserved_in_cluster_by_robots = ( # Adjusted to unpack 3 values
                         self.robot_routing_service.route_robots(
                             cluster_centroid=centroid,
                             customers=cluster_obj.locations,
@@ -239,7 +239,7 @@ class ClusterRouteHandler:
             total_time += route_time
 
             # Route robots within this cluster
-            robot_routes, robot_metrics = self.robot_routing_service.route_robots(
+            robot_routes, robot_metrics, _unserved_in_cluster_by_robots = self.robot_routing_service.route_robots( # Adjusted
                 cluster_centroid=centroid,
                 customers=cluster_obj.locations,
                 robots=truck_robots,
