@@ -104,10 +104,31 @@ class ORToolsCVRP:
         # Solve the problem
         solution = routing.SolveWithParameters(search_parameters)
 
-        if not solution:
+        if not solution: # This is the primary check if a solution object was returned at all
+            print(f"[DEBUG] ORToolsCVRP.solve: routing.SolveWithParameters returned no solution object (solver status: {routing.status()})")
             return [], 0.0
+        
+        # ---- MODIFIED DEBUG PRINT for status 4 (if solution object exists) ----
+        if routing.status() == 4: # ROUTING_SUCCESS
+            current_routes_for_debug = []
+            for i in range(max_vehicles):
+                vehicle_route = []
+                index = routing.Start(i)
+                while not routing.IsEnd(index):
+                    node_index = manager.IndexToNode(index)
+                    vehicle_route.append(node_index)
+                    index = solution.Value(routing.NextVar(index))
+                node_index = manager.IndexToNode(index) # Add the end node (depot)
+                vehicle_route.append(node_index)
+                # Only add if it's a non-trivial route (visits at least one customer)
+                if len(vehicle_route) > 2 or (len(vehicle_route) == 2 and vehicle_route[0] != vehicle_route[1]): # Check for depot-only routes
+                     current_routes_for_debug.append(vehicle_route)
+            print(f"[DEBUG] ORToolsCVRP.solve: Solver status 4 (ROUTING_SUCCESS). Raw routes extracted by debug logic: {current_routes_for_debug}")
+        elif routing.status() != 1: # If not ROUTING_SUCCESS (status 1 is also success, but 4 is more common for solved) and not 4
+             print(f"[DEBUG] ORToolsCVRP.solve: Solution object exists, but status is not ideal: {routing.status()}")
+        # ---- END MODIFIED DEBUG PRINT ----
 
-        # Extract solution
+        # Extract solution (original logic)
         routes = []
         total_distance = 0
 

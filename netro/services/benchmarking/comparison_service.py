@@ -49,16 +49,29 @@ class ComparisonService:
         baseline_emissions = baseline_solution.get("total_emissions", 0)
         baseline_num_trucks = baseline_solution["metrics"]["num_trucks_used"]
 
-        # Use the parallel time calculation for Netro
-        netro_time = netro_solution["parallel_time"]
-        netro_truck_distance = netro_solution["total_truck_distance"]
+        # Use the parallel time calculation for Netro, including last-resort if applicable
+        netro_parallel_time = netro_solution["parallel_time"] # Time for the hybrid part
+        netro_last_resort_time = netro_solution.get("last_resort_truck_time", 0.0)
+        # The 'total_time_with_last_resort' key should exist from NetroApplication
+        netro_time = netro_solution.get("total_time_with_last_resort", netro_parallel_time + netro_last_resort_time)
+
+
+        netro_truck_distance = netro_solution["total_truck_distance"] # Already includes last-resort
         netro_robot_distance = netro_solution["total_robot_distance"]
         netro_total_distance = netro_truck_distance + netro_robot_distance
-        netro_num_trucks = len(netro_solution["truck_routes"])
+        
+        # Number of trucks used in the main hybrid part
+        netro_main_truck_routes = netro_solution.get("truck_routes", [])
+        netro_num_main_trucks = len(netro_main_truck_routes)
+        # Number of trucks used in last-resort (can be from the same pool or additional)
+        # For simplicity, we'll report the number of main trucks, as last-resort reuses them.
+        # A more detailed metric could be 'total_truck_deployments'.
+        netro_num_trucks_reported = netro_num_main_trucks
+
 
         # CORRECTED: Calculate driver costs properly
         baseline_driver_cost = self._calculate_baseline_driver_cost(baseline_solution)
-        netro_driver_cost = self._calculate_netro_driver_cost(netro_solution)
+        netro_driver_cost = self._calculate_netro_driver_cost(netro_solution) # This will need to account for last_resort_truck_time
 
         # Calculate cost and emissions improvement
         driver_cost_improvement = (
@@ -67,19 +80,14 @@ class ComparisonService:
             else 0
         )
 
-        # Compute other cost and emissions for Netro (simplified)
-        netro_cost = (
-            baseline_cost * (netro_time / baseline_time) if baseline_time > 0 else 0
-        )
-        netro_emissions = (
-            baseline_emissions * (netro_truck_distance / baseline_distance)
-            if baseline_distance > 0
-            else 0
-        )
+        # Use actual cost and emissions from netro_solution if available (they now include last-resort)
+        netro_cost = netro_solution.get("total_cost", 0) 
+        netro_emissions = netro_solution.get("total_emissions", 0)
 
-        # Calculate improvement percentages
+
+        # Calculate improvement percentages using the appropriate Netro time
         time_improvement = (
-            (baseline_time - netro_time) / baseline_time * 100
+            (baseline_time - netro_time) / baseline_time * 100 # netro_time now includes last_resort
             if baseline_time > 0
             else 0
         )
@@ -100,16 +108,19 @@ class ComparisonService:
                 "driver_cost": baseline_driver_cost,
             },
             "netro": {
-                "total_time": netro_time,
+                "total_time": netro_time, # This is total_time_with_last_resort
+                "parallel_time_hybrid": netro_parallel_time, # Time of just the hybrid part
+                "last_resort_truck_time": netro_last_resort_time,
                 "total_truck_distance": netro_truck_distance,
                 "total_robot_distance": netro_robot_distance,
                 "total_distance": netro_total_distance,
-                "estimated_cost": netro_cost,
-                "estimated_emissions": netro_emissions,
-                "num_trucks_used": netro_num_trucks,
-                "num_clusters": len(netro_solution["cluster_routes"]),
+                "total_cost": netro_cost, # Changed from estimated_cost
+                "total_emissions": netro_emissions, # Changed from estimated_emissions
+                "num_trucks_used": netro_num_trucks_reported,
+                "num_clusters": len(netro_solution.get("cluster_routes", {})),
                 "parallel_computation": True,
                 "driver_cost": netro_driver_cost,
+                "last_resort_routes_exist": bool(netro_solution.get("last_resort_truck_routes")),
             },
             "improvement": {
                 "time_percent": time_improvement,
@@ -156,20 +167,54 @@ class ComparisonService:
 
         total_driver_hours = 0.0
 
-        # Calculate actual driver hours: sum of (truck_travel + robot_waiting) for each truck
+        # Calculate actual driver hours: sum of (truck_travel + robot_waiting) for each truck in the hybrid part
         for truck_idx, metrics in cluster_metrics.items():
             # Each truck's total time = truck travel + robot waiting
-            truck_route_time = self._get_truck_route_time(truck_idx, netro_solution)
+            # This logic for individual truck time in hybrid part might need refinement
+            # if netro_solution["truck_metrics"]["route_times_individual"] is available.
+            # For now, using the existing _get_truck_route_time which averages.
+            truck_route_time_hybrid = self._get_truck_route_time(truck_idx, netro_solution, is_hybrid_part=True)
             cluster_operation_time = (
-                metrics.get("max_time", 0.0) / 60.0
-            )  # Convert to hours
+                metrics.get("max_time", 0.0) # Assuming this is already in hours from NetroRoutingService
+            ) 
 
-            total_truck_time = truck_route_time + cluster_operation_time
-            total_driver_hours += total_truck_time
+            total_truck_time_hybrid = truck_route_time_hybrid + cluster_operation_time
+            total_driver_hours += total_truck_time_hybrid
+        
+        # Add driver hours for last-resort truck routes
+        # last_resort_truck_time is the sum of durations of all last-resort routes
+        total_driver_hours += netro_solution.get("last_resort_truck_time", 0.0)
 
         return total_driver_hours * self.driver_hourly_cost
 
     def _get_truck_route_time(
+        self, truck_idx: int, netro_solution: Dict[str, Any], is_hybrid_part: bool = False
+    ) -> float:
+        """Extract truck travel time for a specific truck route."""
+        # This is a simplified calculation - in a real system we'd track individual route times
+        # If is_hybrid_part, use truck_metrics from the main hybrid solution
+        # Otherwise, this function might not be directly applicable for last-resort if times are already summed.
+        
+        if is_hybrid_part:
+            truck_metrics = netro_solution.get("truck_metrics", {})
+            # Check if individual route times are available (preferred)
+            # This depends on what NetroRoutingService populates in truck_metrics
+            # Assuming 'route_times_individual' might be a list of times for each truck route to centroids
+            individual_route_times = truck_metrics.get("route_times_individual")
+            if individual_route_times and truck_idx < len(individual_route_times):
+                return individual_route_times[truck_idx]
+            
+            # Fallback to average if individual times not available
+            total_truck_travel_time_hybrid = truck_metrics.get("total_travel_time", 0.0) # Assuming this is just travel
+            num_hybrid_routes = len(netro_solution.get("truck_routes", []))
+            return (total_truck_travel_time_hybrid / num_hybrid_routes) if num_hybrid_routes > 0 else 0.0
+        
+        # For non-hybrid (e.g. last-resort), this function might not be the right place,
+        # as last_resort_truck_time is already a sum.
+        return 0.0
+
+
+    def _get_baseline_cost_breakdown(
         self, truck_idx: int, netro_solution: Dict[str, Any]
     ) -> float:
         """Extract truck travel time for a specific truck route."""
@@ -224,12 +269,16 @@ class ComparisonService:
         return {
             "parallel_operation_time": parallel_time,
             "truck_travel_time": truck_travel_time,
-            "max_cluster_operation_time": max_cluster_time,
-            "number_of_trucks": num_trucks,
+            "max_cluster_operation_time": max_cluster_time, # Max time spent by any truck at a cluster
+            "number_of_trucks": num_trucks, # Number of trucks used in hybrid part
             "number_of_clusters": num_clusters,
-            "driver_cost": parallel_time * num_trucks * self.driver_hourly_cost,
-            "operation_mode": "Parallel trucks (time is max across truck routes)",
-            "cost_per_truck": parallel_time * self.driver_hourly_cost,
+            "driver_cost_hybrid_part": (netro_solution["parallel_time"] * num_trucks * self.driver_hourly_cost) if num_trucks > 0 else 0, # Cost for the parallel hybrid part
+            "driver_cost_last_resort": netro_solution.get("last_resort_truck_time", 0.0) * self.driver_hourly_cost,
+            "total_driver_cost": netro_solution.get("driver_cost",0.0), # This should be calculated by _calculate_netro_driver_cost
+            "operation_mode": "Parallel trucks to centroids, then parallel robots; sequential last-resort trucks if needed",
+            "cost_per_truck_hybrid_avg": (netro_solution["parallel_time"] * self.driver_hourly_cost) if num_trucks > 0 else 0,
+            "last_resort_truck_time_sum": netro_solution.get("last_resort_truck_time", 0.0),
+            "num_last_resort_routes": len(netro_solution.get("last_resort_truck_routes", [])),
         }
 
     def generate_report(self, comparison: Dict[str, Any]) -> str:
@@ -262,7 +311,7 @@ class ComparisonService:
         report.append("| Metric | Traditional | Netro | Improvement |")
         report.append("|--------|------------|-------|-------------|")
         report.append(
-            f"| Total Time (hours) | {baseline['total_time']:.2f} | {netro['total_time']:.2f} | {improvement['time_percent']:.2f}% |"
+            f"| Total Time (hours) | {baseline['total_time']:.2f} | {netro['total_time']:.2f} (Hybrid: {netro.get('parallel_time_hybrid', 0.0):.2f} + Last-Resort: {netro.get('last_resort_truck_time', 0.0):.2f}) | {improvement['time_percent']:.2f}% |"
         )
         report.append(
             f"| Driver Cost (EUR) | {baseline['driver_cost']:.2f} | {netro['driver_cost']:.2f} | {improvement['driver_cost_percent']:.2f}% |"
@@ -274,14 +323,15 @@ class ComparisonService:
         # Add cost if available
         if (
             baseline.get("total_cost") is not None
-            and netro.get("estimated_cost") is not None
+            and netro.get("total_cost") is not None # Changed from estimated_cost
         ):
+            cost_improvement_calc = ((baseline['total_cost'] - netro['total_cost']) / baseline['total_cost'] * 100) if baseline['total_cost'] > 0 else 0
             report.append(
-                f"| Total Cost | {baseline['total_cost']:.2f} | {netro['estimated_cost']:.2f} | {(baseline['total_cost'] - netro['estimated_cost']) / baseline['total_cost'] * 100:.2f}% |"
+                f"| Total Cost | {baseline['total_cost']:.2f} | {netro['total_cost']:.2f} | {cost_improvement_calc:.2f}% |"
             )
 
         report.append(
-            f"| Number of Trucks | {baseline['num_trucks_used']} | {netro['num_trucks_used']} | - |"
+            f"| Number of Trucks | {baseline['num_trucks_used']} | {netro['num_trucks_used']} | - |" # netro_num_trucks_used is main trucks
         )
         report.append("")
 
@@ -307,26 +357,37 @@ class ComparisonService:
 
             report.append("### Netro Hybrid Approach")
             report.append(
-                f"- Operation mode: {netro_breakdown.get('operation_mode', 'Parallel')}"
+                f"- Operation mode: {netro_breakdown.get('operation_mode', 'Parallel with potential sequential last-resort')}"
             )
             report.append(
-                f"- Parallel operation time: {netro_breakdown.get('parallel_operation_time', 0):.2f} hours"
+                f"- Parallel hybrid operation time: {netro.get('parallel_time_hybrid', 0.0):.2f} hours"
+            )
+            if netro.get('last_resort_routes_exist', False):
+                report.append(
+                    f"- Last-resort truck time (sequential): {netro.get('last_resort_truck_time', 0.0):.2f} hours"
+                )
+                report.append(
+                    f"- Combined Total Time: {netro['total_time']:.2f} hours"
+                )
+            report.append(
+                f"- Truck travel time component (hybrid part): {netro_breakdown.get('truck_travel_time', 0):.2f} hours"
             )
             report.append(
-                f"- Truck travel time component: {netro_breakdown.get('truck_travel_time', 0):.2f} hours"
+                f"- Max cluster operation time (hybrid part): {netro_breakdown.get('max_cluster_operation_time', 0):.2f} hours"
             )
             report.append(
-                f"- Max cluster operation time: {netro_breakdown.get('max_cluster_operation_time', 0):.2f} hours"
+                f"- Number of trucks (main hybrid): {netro_breakdown.get('number_of_trucks', 0)}"
             )
-            report.append(
-                f"- Number of trucks: {netro_breakdown.get('number_of_trucks', 0)}"
-            )
+            if netro_breakdown.get('num_last_resort_routes', 0) > 0:
+                 report.append(
+                    f"- Number of last-resort truck routes: {netro_breakdown.get('num_last_resort_routes', 0)}"
+                )
             report.append(
                 f"- Number of clusters: {netro_breakdown.get('number_of_clusters', 0)}"
             )
-            report.append(
-                f"- Cost per truck: {netro_breakdown.get('cost_per_truck', 0):.2f} EUR"
-            )
+            # report.append(
+            #     f"- Cost per truck (hybrid_avg): {netro_breakdown.get('cost_per_truck_hybrid_avg', 0):.2f} EUR"
+            # )
             report.append(f"- **Total driver cost: {netro['driver_cost']:.2f} EUR**")
             report.append("")
 
@@ -346,13 +407,25 @@ class ComparisonService:
         report.append("")
         report.append("**Netro System:**")
         report.append(
-            f"- Parallel time: {netro['total_time']:.1f} hours (max across truck routes)"
+            f"- Hybrid parallel time: {netro.get('parallel_time_hybrid', 0.0):.1f} hours (max across main truck routes to centroids + their cluster service time)"
         )
+        if netro.get('last_resort_routes_exist', False):
+            report.append(
+                f"- Last-resort truck time: {netro.get('last_resort_truck_time', 0.0):.1f} hours (sum of sequential last-resort truck routes)"
+            )
+            report.append(
+                f"- Combined Total Time: {netro['total_time']:.1f} hours"
+            )
+        else:
+            report.append(
+                f"- Total Time: {netro['total_time']:.1f} hours"
+            )
         report.append(
-            f"- Number of trucks: {netro['num_trucks_used']} (operating simultaneously)"
+            f"- Number of trucks (main hybrid): {netro['num_trucks_used']}"
         )
+        # Driver cost calculation is now more complex due to summing individual efforts + last resort
         report.append(
-            f"- Driver cost: {netro['total_time']:.1f} hours × {netro['num_trucks_used']} trucks × €15/h = €{netro['driver_cost']:.0f}"
+            f"- Total Driver Cost: €{netro['driver_cost']:.2f} (sum of all driver hours for hybrid and last-resort)"
         )
         report.append("")
 
@@ -421,7 +494,9 @@ class ComparisonService:
 
         # Plot 1: Time comparison (top-left)
         metrics1 = ["Total Time (hours)"]
-        values1 = [[baseline["total_time"]], [netro["total_time"]]]
+        # Use the combined time for Netro, which includes last-resort if applicable
+        netro_display_time = netro.get("total_time", netro.get("parallel_time_hybrid", 0.0))
+        values1 = [[baseline["total_time"]], [netro_display_time]]
 
         x1 = np.arange(len(metrics1))
         width = 0.35
@@ -533,16 +608,26 @@ class ComparisonService:
             "netro_breakdown", {}
         )
 
-        # Show the difference between sum vs max calculation
-        time_categories = ["Traditional\n(Sum of routes)", "Netro\n(Max of routes)"]
-        time_values = [baseline["total_time"], netro["total_time"]]
-
-        bars7 = axs[1, 1].bar(
-            time_categories, time_values, color=["#1f77b4", "#ff7f0e"]
-        )
+        # Show time components for Netro if last resort routes exist
+        if netro.get("last_resort_routes_exist", False):
+            time_categories = ["Traditional\n(Sum of routes)", "Netro Hybrid\n(Parallel Part)", "Netro Last-Resort\n(Sequential)", "Netro Combined"]
+            time_values = [
+                baseline["total_time"], 
+                netro.get("parallel_time_hybrid", 0.0), 
+                netro.get("last_resort_truck_time", 0.0),
+                netro.get("total_time", 0.0) # Combined time
+            ]
+            colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+            axs[1, 1].set_title("Time Components")
+        else:
+            time_categories = ["Traditional\n(Sum of routes)", "Netro\n(Parallel Time)"]
+            time_values = [baseline["total_time"], netro.get("total_time", 0.0)] # Should be parallel_time_hybrid if no last_resort
+            colors = ["#1f77b4", "#ff7f0e"]
+            axs[1, 1].set_title("Time Calculation: Sum vs Parallel")
+        
+        bars7 = axs[1, 1].bar(time_categories, time_values, color=colors)
         axs[1, 1].set_ylabel("Hours")
-        axs[1, 1].set_title("Time Calculation: Sum vs Max")
-
+        
         # Add value labels
         for bar in bars7:
             height = bar.get_height()
