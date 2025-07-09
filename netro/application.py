@@ -27,7 +27,7 @@ from netro.services.robot_deployment.smart_loader import SmartLoader
 from netro.infrastructure.io.solomon_reader import SolomonReader
 from netro.infrastructure.visualization.solution_visualizer import SolutionVisualizer
 
-# Configuration - updated imports with 'netro.' prefix
+import math
 from netro.config.env import get_config
 
 
@@ -44,15 +44,17 @@ class NetroApplication:
     5. Compare and visualize results
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, robot_type: str, config_path: Optional[str] = None):
         """
         Initialize the application.
 
         Args:
+            robot_type: The type of robot to use for the simulation (e.g., 'cartken').
             config_path: Optional path to a config file. If None, default config is used.
         """
         # Load configuration
         self.config = get_config()
+        self.robot_type = robot_type
 
         # Create output directory if it doesn't exist
         output_path = Path(self.config["IO"]["output_path"])
@@ -105,8 +107,32 @@ class NetroApplication:
         """
         Initialize trucks and robots based on configuration.
         """
-        # Create trucks
         truck_config = self.config["VEHICLES"]["truck"]
+
+        # --- Dynamic Robot and Truck Capacity Calculation ---
+        # Select the robot configuration first to determine truck capacity
+        try:
+            robot_config = self.config["VEHICLES"]["robots"][self.robot_type]
+            print(f"Using robot type: {self.robot_type}")
+        except KeyError:
+            raise ValueError(f"Robot type '{self.robot_type}' not found in configuration.")
+
+        # Dynamically calculate the truck's robot capacity
+        base_volume = truck_config.get("base_robot_volume", 5.0)
+        robot_size_factor = robot_config.get("size_factor", 1.0)
+        
+        if robot_size_factor <= 0:
+            raise ValueError("Robot 'size_factor' must be positive.")
+
+        # This calculation is now dynamic
+        robots_per_truck = math.floor(base_volume / robot_size_factor)
+        
+        # Update the truck config in-memory for this run *before* creating trucks
+        truck_config["robot_capacity"] = robots_per_truck
+        
+        print(f"Truck robot capacity dynamically set to {robots_per_truck} '{self.robot_type}' robots.")
+
+        # --- Create Trucks ---
         # Calculate number of trucks needed based on total demand
         num_trucks = max(
             1,
@@ -126,15 +152,13 @@ class NetroApplication:
                 cost_per_distance=truck_config["cost_per_distance"],
                 cost_per_time=truck_config["cost_per_time"],
                 emissions_per_distance=truck_config["emissions_per_distance"],
-                robot_capacity=truck_config["robot_capacity"],
+                robot_capacity=truck_config["robot_capacity"],  # Now this key exists
                 loading_time=truck_config["loading_time"],
             )
             for i in range(num_trucks)
         ]
 
-        # Create robots
-        robot_config = self.config["VEHICLES"]["robot"]
-        robots_per_truck = truck_config["robot_capacity"]
+        # --- Create Robots ---
         total_robots = num_trucks * robots_per_truck
 
         self.robots = [
@@ -176,10 +200,11 @@ class NetroApplication:
 
         # Run clustering
         truck_config = self.config["VEHICLES"]["truck"]
-        robot_config = self.config["VEHICLES"]["robot"]
+        robot_config = self.config["VEHICLES"]["robots"][self.robot_type] # Use selected robot
         
-        num_robots_per_truck = truck_config.get("robot_capacity", 1) 
-        capacity_per_robot = robot_config.get("capacity", 30) 
+        # The number of robots per truck is now dynamically calculated in initialize_vehicles
+        num_robots_per_truck = truck_config["robot_capacity"]
+        capacity_per_robot = robot_config["capacity"]
         
         effective_cluster_capacity = num_robots_per_truck * capacity_per_robot
         print(f"[INFO] Effective capacity for cluster splitting (1 truck's robots): {num_robots_per_truck} robots * {capacity_per_robot} cap/robot = {effective_cluster_capacity}")
@@ -275,11 +300,12 @@ class NetroApplication:
         netro_service = NetroRoutingService(
             truck_routing_algorithm=truck_router,
             robot_routing_service=robot_routing_service,
-            robot_unloading_time=deployment_config["loading_time_per_robot"]
+        robot_unloading_time=deployment_config["loading_time_per_robot"]
             * self.config["VEHICLES"]["truck"]["robot_capacity"],
         )
 
         robots_per_truck = []
+        # Use the dynamically calculated capacity
         robot_fleet_capacity_per_truck = self.config["VEHICLES"]["truck"]["robot_capacity"]
         robot_idx = 0
         for _ in range(len(self.trucks)):

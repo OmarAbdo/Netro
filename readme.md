@@ -86,7 +86,7 @@ pip install -r requirements.txt
 Run the full Netro workflow with a dataset:
 
 ```bash
-python -m netro.main --dataset c101.txt
+python -m netro.main --dataset c101.txt --robot starship
 ```
 
 This will:
