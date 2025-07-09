@@ -368,6 +368,17 @@ class NetroApplication:
                         if global_indices_for_route:
                             remapped_lr_routes_global_indices.append(global_indices_for_route)
                 
+                # Detailed logging for remapped last-resort routes
+                print(f"[DEBUG APP] Remapped Last-Resort Routes (Global Indices): {len(remapped_lr_routes_global_indices)} routes")
+                for i, route_g_indices in enumerate(remapped_lr_routes_global_indices):
+                    route_customer_ids = []
+                    for g_idx in route_g_indices:
+                        if 0 <= g_idx < len(self.locations):
+                            route_customer_ids.append(self.locations[g_idx].id)
+                        else:
+                            route_customer_ids.append(f"InvalidIdx:{g_idx}")
+                    print(f"  Route {i}: Indices {route_g_indices} (Customer IDs: {route_customer_ids})")
+
                 self.netro_solution['last_resort_truck_routes'] = remapped_lr_routes_global_indices
                 self.netro_solution['total_truck_distance'] += last_resort_solution['total_distance']
                 

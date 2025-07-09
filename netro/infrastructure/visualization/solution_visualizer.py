@@ -147,7 +147,9 @@ class SolutionVisualizer:
         robot_cmap = plt.cm.get_cmap("Paired", 12)
         
         num_last_resort_routes = len(last_resort_truck_routes) if last_resort_truck_routes else 0
-        last_resort_cmap = plt.cm.get_cmap("cool", num_last_resort_routes if num_last_resort_routes > 0 else 1)
+        # Using a fixed, prominent color for debugging last-resort routes
+        # last_resort_cmap = plt.cm.get_cmap("cool", num_last_resort_routes if num_last_resort_routes > 0 else 1)
+        debug_lr_color = 'orange'
 
 
         all_customer_x = []
@@ -212,13 +214,13 @@ class SolutionVisualizer:
                 # Label only one last-resort route type for legend
                 label_last_resort = "Last-Resort Truck Routes" if i == 0 else None
                 ax.plot(
-                    route_x, route_y, 'x--', color=last_resort_cmap(i % last_resort_cmap.N), 
-                    linewidth=1.5, markersize=6, label=label_last_resort, zorder=4
+                    route_x, route_y, 'o-', color=debug_lr_color,  # Changed style to 'o-' for visibility
+                    linewidth=3, markersize=8, label=label_last_resort, zorder=10 # Increased zorder
                 )
                 # Mark customers served by last-resort routes
                 for loc_idx in route_indices[1:-1]: 
                     label_lr_cust = "Last-Resort Served Customer" if i == 0 and loc_idx == route_indices[1] else None
-                    ax.scatter(all_locations_list[loc_idx].x, all_locations_list[loc_idx].y, marker='P', color=last_resort_cmap(i % last_resort_cmap.N), s=70, edgecolors='black', zorder=4, label=label_lr_cust)
+                    ax.scatter(all_locations_list[loc_idx].x, all_locations_list[loc_idx].y, marker='P', color=debug_lr_color, s=150, edgecolors='black', zorder=11, label=label_lr_cust) # Increased size and zorder
 
         # Plot finally unserved customers, if any
         if finally_unserved_customers:
