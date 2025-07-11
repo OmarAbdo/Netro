@@ -71,10 +71,24 @@ class NetroRoutingService:
             self._create_centroid_mappings(clusters, centroids)
         )
 
-        # Route trucks between cluster centroids
+        # Route trucks between cluster centroids (with cluster validation)
         truck_routes, truck_metrics = self.truck_route_planner.plan_routes(
             depot, centroids, trucks
         )
+        
+        # Verify all clusters are assigned
+        assigned_centroids = {idx for route in truck_routes for idx in route[1:-1]}
+        all_centroid_indices = set(centroids.keys())
+        unassigned = all_centroid_indices - assigned_centroids
+        
+        if unassigned:
+            print(f"Found {len(unassigned)} unassigned clusters, adding forced routes")
+            # Create emergency routes for remaining clusters
+            for cluster_id in unassigned:
+                truck_idx = len(truck_routes) % len(trucks)
+                truck_routes.append([0, cluster_id, 0])
+                truck_metrics["total_distance"] += centroids[cluster_id].distance_to(depot) * 2
+                truck_metrics["total_time"] += (centroids[cluster_id].distance_to(depot) * 2) / trucks[truck_idx].speed
 
         # Process each truck route and handle robot routing within clusters
         cluster_results = self.cluster_route_handler.process_routes(

@@ -41,6 +41,9 @@ class TruckRoutePlanner:
             - List of truck routes.
             - Dictionary with metrics.
         """
+        # Force solver to use all available trucks
+        self.routing_algorithm.max_vehicles = len(trucks)
+        
         # Create list of locations with depot as first location
         centroid_locations = list(centroids.values())
         all_locations = [depot] + centroid_locations

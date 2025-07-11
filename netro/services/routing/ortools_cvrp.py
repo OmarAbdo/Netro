@@ -70,6 +70,11 @@ class ORToolsCVRP:
         # Create routing model
         routing = pywrapcp.RoutingModel(manager)
 
+        # Prevent node dropping with high penalty
+        penalty = 1000000  # Arbitrarily large penalty value
+        for node in range(1, len(demands)):
+            routing.AddDisjunction([manager.NodeToIndex(node)], penalty)
+
         # Define distance callback
         def distance_callback(from_index, to_index):
             from_node = manager.IndexToNode(from_index)
