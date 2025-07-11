@@ -11,7 +11,7 @@ class SmartLoader:
 
     Inspired by:
     Simoni et al., "Optimization and analysis of a robot-assisted last mile delivery system",
-    Transportation Research Part E, p. 67 (lines 15-20).
+    Transportation Research Part E.
     """
 
     def __init__(self, loading_time_per_robot: float = 1.0):
