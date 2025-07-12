@@ -4,20 +4,21 @@
 
 | Metric | Traditional | Netro | Improvement |
 |--------|------------|-------|-------------|
-| Total Time (hours) | 2189.20 | 20.22 (Hybrid: 20.22 + Last-Resort: 0.00) | 99.08% |
-| Driver Cost (EUR) | 32837.97 | 7472.63 | 77.24% |
-| Total Distance (km) | 40977.00 | 40293.86 | 1.67% |
-| Total Cost | 64459.91 | 0.00 | 100.00% |
+| Total Time (hours) | 2190.79 | 20.22 (Hybrid: 20.22 + Last-Resort: 0.00) | 99.08% |
+| Sequential Time Equivalent | - | 498.18 | - |
+| Time Savings from Parallelization | - | 477.95h (95.9%) | - |
+| Driver Cost (EUR) | 32861.87 | 7472.63 | 77.26% |
+| Total Distance (km) | 41071.00 | 40293.86 | 1.89% |
 | Number of Trucks | 90 | 85 | - |
 
 ## Operational Analysis
 
 ### Traditional Approach
 - Operation mode: Sequential customer visits (time is sum across all trucks)
-- Total operation time: 2189.20 hours
+- Total operation time: 2190.79 hours
 - Number of trucks: 90
-- Average time per truck: 24.32 hours
-- **Total driver cost: 32837.97 EUR**
+- Average time per truck: 24.34 hours
+- **Total driver cost: 32861.87 EUR**
 
 ### Netro Hybrid Approach
 - Operation mode: Parallel trucks to centroids, then parallel robots; sequential last-resort trucks if needed
@@ -31,9 +32,9 @@
 ## Time Calculation Explanation
 
 **Traditional System:**
-- Total time: 2189.2 hours (sum of all truck routes)
+- Total time: 2190.8 hours (sum of all truck routes)
 - Average per truck: 24.3 hours
-- Driver cost: 2189.2 hours × €15/h = €32838
+- Driver cost: 2190.8 hours × €15/h = €32862
 
 **Netro System:**
 - Hybrid parallel time: 20.2 hours (max across main truck routes to centroids + their cluster service time)
@@ -43,8 +44,8 @@
 
 ## Financial Analysis
 
-The Netro system saves **25365.34 EUR** in driver costs,
-representing a 77.24% reduction compared to the traditional approach.
+The Netro system saves **25389.24 EUR** in driver costs,
+representing a 77.26% reduction compared to the traditional approach.
 
 This cost reduction is achieved through:
 1. **Parallel truck operations**: Multiple trucks work simultaneously

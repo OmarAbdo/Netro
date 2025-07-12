@@ -5,9 +5,10 @@
 | Metric | Traditional | Netro | Improvement |
 |--------|------------|-------|-------------|
 | Total Time (hours) | 2189.20 | 23.75 (Hybrid: 23.75 + Last-Resort: 0.00) | 98.91% |
+| Sequential Time Equivalent | - | 758.93 | - |
+| Time Savings from Parallelization | - | 735.18h (96.9%) | - |
 | Driver Cost (EUR) | 32837.97 | 11384.02 | 65.33% |
 | Total Distance (km) | 40977.00 | 38944.68 | 4.96% |
-| Total Cost | 64459.91 | 0.00 | 100.00% |
 | Number of Trucks | 90 | 85 | - |
 
 ## Operational Analysis

@@ -4,20 +4,21 @@
 
 | Metric | Traditional | Netro | Improvement |
 |--------|------------|-------|-------------|
-| Total Time (hours) | 164.14 | 8.58 (Hybrid: 8.58 + Last-Resort: 0.00) | 94.77% |
-| Driver Cost (EUR) | 2462.16 | 842.42 | 65.79% |
-| Total Distance (km) | 818.00 | 1153.22 | -40.98% |
-| Total Cost | 3707.18 | 0.00 | 100.00% |
+| Total Time (hours) | 164.16 | 8.58 (Hybrid: 8.58 + Last-Resort: 0.00) | 94.77% |
+| Sequential Time Equivalent | - | 56.16 | - |
+| Time Savings from Parallelization | - | 47.58h (84.7%) | - |
+| Driver Cost (EUR) | 2462.40 | 842.42 | 65.79% |
+| Total Distance (km) | 819.00 | 1153.22 | -40.81% |
 | Number of Trucks | 10 | 11 | - |
 
 ## Operational Analysis
 
 ### Traditional Approach
 - Operation mode: Sequential customer visits (time is sum across all trucks)
-- Total operation time: 164.14 hours
+- Total operation time: 164.16 hours
 - Number of trucks: 10
-- Average time per truck: 16.41 hours
-- **Total driver cost: 2462.16 EUR**
+- Average time per truck: 16.42 hours
+- **Total driver cost: 2462.40 EUR**
 
 ### Netro Hybrid Approach
 - Operation mode: Parallel trucks to centroids, then parallel robots; sequential last-resort trucks if needed
@@ -31,9 +32,9 @@
 ## Time Calculation Explanation
 
 **Traditional System:**
-- Total time: 164.1 hours (sum of all truck routes)
+- Total time: 164.2 hours (sum of all truck routes)
 - Average per truck: 16.4 hours
-- Driver cost: 164.1 hours × €15/h = €2462
+- Driver cost: 164.2 hours × €15/h = €2462
 
 **Netro System:**
 - Hybrid parallel time: 8.6 hours (max across main truck routes to centroids + their cluster service time)
@@ -43,7 +44,7 @@
 
 ## Financial Analysis
 
-The Netro system saves **1619.74 EUR** in driver costs,
+The Netro system saves **1619.98 EUR** in driver costs,
 representing a 65.79% reduction compared to the traditional approach.
 
 This cost reduction is achieved through:
