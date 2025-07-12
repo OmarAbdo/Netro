@@ -85,6 +85,12 @@ class ComparisonService:
         netro_emissions = netro_solution.get("total_emissions", 0)
 
 
+        # Calculate sequential time equivalent (sum of all cluster times)
+        netro_sequential_time = sum(
+            metrics.get("max_time", 0) 
+            for metrics in netro_solution["cluster_metrics"].values()
+        )
+        
         # Calculate improvement percentages using the appropriate Netro time
         time_improvement = (
             (baseline_time - netro_time) / baseline_time * 100 # netro_time now includes last_resort
@@ -96,13 +102,14 @@ class ComparisonService:
             if baseline_distance > 0
             else 0
         )
+        time_savings = netro_sequential_time - netro_parallel_time
+        time_savings_percent = (time_savings / netro_sequential_time * 100) if netro_sequential_time > 0 else 0
 
         # Create comparison dictionary
         comparison = {
             "baseline": {
                 "total_time": baseline_time,
                 "total_distance": baseline_distance,
-                "total_cost": baseline_cost,
                 "total_emissions": baseline_emissions,
                 "num_trucks_used": baseline_num_trucks,
                 "driver_cost": baseline_driver_cost,
@@ -110,11 +117,11 @@ class ComparisonService:
             "netro": {
                 "total_time": netro_time, # This is total_time_with_last_resort
                 "parallel_time_hybrid": netro_parallel_time, # Time of just the hybrid part
+                "sequential_time_equivalent": netro_sequential_time,
                 "last_resort_truck_time": netro_last_resort_time,
                 "total_truck_distance": netro_truck_distance,
                 "total_robot_distance": netro_robot_distance,
                 "total_distance": netro_total_distance,
-                "total_cost": netro_cost, # Changed from estimated_cost
                 "total_emissions": netro_emissions, # Changed from estimated_emissions
                 "num_trucks_used": netro_num_trucks_reported,
                 "num_clusters": len(netro_solution.get("cluster_routes", {})),
@@ -127,6 +134,8 @@ class ComparisonService:
                 "distance_percent": distance_improvement,
                 "driver_cost_percent": driver_cost_improvement,
                 "driver_cost_absolute": baseline_driver_cost - netro_driver_cost,
+                "time_savings": time_savings,
+                "time_savings_percent": time_savings_percent,
                 "notes": "Corrected driver cost calculation: baseline uses total time, Netro uses parallel time",
             },
             "detailed_breakdown": {
@@ -314,21 +323,19 @@ class ComparisonService:
             f"| Total Time (hours) | {baseline['total_time']:.2f} | {netro['total_time']:.2f} (Hybrid: {netro.get('parallel_time_hybrid', 0.0):.2f} + Last-Resort: {netro.get('last_resort_truck_time', 0.0):.2f}) | {improvement['time_percent']:.2f}% |"
         )
         report.append(
+            f"| Sequential Time Equivalent | - | {netro['sequential_time_equivalent']:.2f} | - |"
+        )
+        report.append(
+            f"| Time Savings from Parallelization | - | {improvement['time_savings']:.2f}h ({improvement['time_savings_percent']:.1f}%) | - |"
+        )
+        report.append(
             f"| Driver Cost (EUR) | {baseline['driver_cost']:.2f} | {netro['driver_cost']:.2f} | {improvement['driver_cost_percent']:.2f}% |"
         )
         report.append(
             f"| Total Distance (km) | {baseline['total_distance']:.2f} | {netro['total_distance']:.2f} | {improvement['distance_percent']:.2f}% |"
         )
 
-        # Add cost if available
-        if (
-            baseline.get("total_cost") is not None
-            and netro.get("total_cost") is not None # Changed from estimated_cost
-        ):
-            cost_improvement_calc = ((baseline['total_cost'] - netro['total_cost']) / baseline['total_cost'] * 100) if baseline['total_cost'] > 0 else 0
-            report.append(
-                f"| Total Cost | {baseline['total_cost']:.2f} | {netro['total_cost']:.2f} | {cost_improvement_calc:.2f}% |"
-            )
+        # Total cost field removed per user request
 
         report.append(
             f"| Number of Trucks | {baseline['num_trucks_used']} | {netro['num_trucks_used']} | - |" # netro_num_trucks_used is main trucks
