@@ -17,12 +17,11 @@ VEHICLES = {
         "cost_per_distance": 0.5,
         "cost_per_time": 20.0,
         "emissions_per_distance": 120.0,
-        "base_robot_volume": 5.0,  # Base volume, equivalent to 5 Cartken-sized robots.
         "loading_time": 5.0,  # minutes
     },
     "robots": {
         "cartken": {
-            "size_factor": 1.0,  # Baseline size
+            "robots_per_truck": 132,  # Number of robots per truck
             "capacity": 300.0,
             "speed": 7.2,
             "cost_per_distance": 0.1,
@@ -32,7 +31,7 @@ VEHICLES = {
             "recharging_rate": 15.0,
         },
         "starship": {
-            "size_factor": 0.5,  # Smaller, can fit more
+            "robots_per_truck": 336,  # Number of robots per truck
             "capacity": 10.0,
             "speed": 6.0,
             "cost_per_distance": 0.1,
@@ -42,7 +41,7 @@ VEHICLES = {
             "recharging_rate": 2.0,
         },
         "ottonomy": {
-            "size_factor": 0.8,  # Slightly smaller than Cartken
+            "robots_per_truck": 68,  # Number of robots per truck
             "capacity": 80.0,
             "speed": 6.0,
             "cost_per_distance": 0.1,
@@ -52,7 +51,7 @@ VEHICLES = {
             "recharging_rate": 3.0,
         },
         "nuro": {
-            "size_factor": 4.0,  # Much larger, road vehicle
+            "robots_per_truck": 11,  # Number of robots per truck
             "capacity": 226.8,
             "speed": 72.0,
             "cost_per_distance": 0.1,

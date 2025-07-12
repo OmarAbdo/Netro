@@ -109,25 +109,17 @@ class NetroApplication:
         """
         truck_config = self.config["VEHICLES"]["truck"]
 
-        # --- Dynamic Robot and Truck Capacity Calculation ---
-        # Select the robot configuration first to determine truck capacity
+        # Get robot configuration
         try:
             robot_config = self.config["VEHICLES"]["robots"][self.robot_type]
             print(f"Using robot type: {self.robot_type}")
         except KeyError:
             raise ValueError(f"Robot type '{self.robot_type}' not found in configuration.")
 
-        # Dynamically calculate the truck's robot capacity
-        base_volume = truck_config.get("base_robot_volume", 5.0)
-        robot_size_factor = robot_config.get("size_factor", 1.0)
+        # Get fixed number of robots per truck from config
+        robots_per_truck = robot_config["robots_per_truck"]
         
-        if robot_size_factor <= 0:
-            raise ValueError("Robot 'size_factor' must be positive.")
-
-        # This calculation is now dynamic
-        robots_per_truck = math.floor(base_volume / robot_size_factor)
-        
-        # Update the truck config in-memory for this run *before* creating trucks
+        # Set truck's robot capacity
         truck_config["robot_capacity"] = robots_per_truck
         
         print(f"Truck robot capacity dynamically set to {robots_per_truck} '{self.robot_type}' robots.")
@@ -202,7 +194,7 @@ class NetroApplication:
         truck_config = self.config["VEHICLES"]["truck"]
         robot_config = self.config["VEHICLES"]["robots"][self.robot_type] # Use selected robot
         
-        # The number of robots per truck is now dynamically calculated in initialize_vehicles
+        # The number of robots per truck is fixed from configuration
         num_robots_per_truck = truck_config["robot_capacity"]
         capacity_per_robot = robot_config["capacity"]
         
@@ -489,6 +481,9 @@ class NetroApplication:
             save_path: Optional path to save visualizations. If None, figures are displayed.
         """
         visualizer = SolutionVisualizer()
+
+        if save_path:
+            os.makedirs(save_path, exist_ok=True)
 
         if self.clusters:
             print("Visualizing clusters...")
