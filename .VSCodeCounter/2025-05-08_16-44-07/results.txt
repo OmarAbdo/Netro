@@ -1,0 +1,89 @@
+Date : 2025-05-08 16:44:07
+Directory : d:\6 Viadrina\Robotics Thesis\Application\Netro
+Total : 40 files,  4655 codes, 488 comments, 1091 blanks, all 6234 lines
+
+Languages
++------------------+------------+------------+------------+------------+------------+
+| language         | files      | code       | comment    | blank      | total      |
++------------------+------------+------------+------------+------------+------------+
+| Python           |         38 |      4,518 |        488 |      1,039 |      6,045 |
+| Markdown         |          1 |        128 |          0 |         52 |        180 |
+| pip requirements |          1 |          9 |          0 |          0 |          9 |
++------------------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                           | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                              |         40 |      4,655 |        488 |      1,091 |      6,234 |
+| . (Files)                                                                                                      |          3 |        152 |          1 |         55 |        208 |
+| netro                                                                                                          |         37 |      4,503 |        487 |      1,036 |      6,026 |
+| netro (Files)                                                                                                  |          3 |        382 |         34 |         86 |        502 |
+| netro\components                                                                                               |          9 |      1,090 |         68 |        198 |      1,356 |
+| netro\components (Files)                                                                                       |          1 |          0 |          0 |          1 |          1 |
+| netro\components\customer_clustering                                                                           |          2 |        356 |         26 |         58 |        440 |
+| netro\components\order_resender                                                                                |          1 |        144 |         21 |         42 |        207 |
+| netro\components\smart_loader                                                                                  |          1 |         74 |          7 |         19 |        100 |
+| netro\components\truck_router                                                                                  |          4 |        516 |         14 |         78 |        608 |
+| netro\config                                                                                                   |          2 |        114 |         17 |         26 |        157 |
+| netro\core                                                                                                     |          6 |        258 |          6 |         71 |        335 |
+| netro\core\entities                                                                                            |          4 |        149 |          4 |         44 |        197 |
+| netro\core\interfaces                                                                                          |          2 |        109 |          2 |         27 |        138 |
+| netro\infrastructure                                                                                           |          2 |        265 |         36 |         67 |        368 |
+| netro\infrastructure\io                                                                                        |          1 |         67 |          6 |         14 |         87 |
+| netro\infrastructure\visualization                                                                             |          1 |        198 |         30 |         53 |        281 |
+| netro\services                                                                                                 |         13 |      2,280 |        309 |        553 |      3,142 |
+| netro\services\benchmarking                                                                                    |          2 |        477 |         51 |         93 |        621 |
+| netro\services\clustering                                                                                      |          3 |        217 |         32 |         56 |        305 |
+| netro\services\optimization                                                                                    |          1 |        253 |         49 |         77 |        379 |
+| netro\services\robot_deployment                                                                                |          1 |         94 |         11 |         27 |        132 |
+| netro\services\routing                                                                                         |          6 |      1,239 |        166 |        300 |      1,705 |
+| netro\utils                                                                                                    |          2 |        114 |         17 |         35 |        166 |
++----------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| filename                                                                                                       | language         | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\__init__.py                                              | Python           |          1 |          1 |          1 |          3 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\application.py                                           | Python           |        346 |         30 |         70 |        446 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\__init__.py                                   | Python           |          0 |          0 |          1 |          1 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\customer_clustering\capacitated_clustering.py | Python           |        164 |         15 |         27 |        206 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\customer_clustering\customer_analysis.py      | Python           |        192 |         11 |         31 |        234 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\order_resender\order_resender.py              | Python           |        144 |         21 |         42 |        207 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\smart_loader\smart_loader.py                  | Python           |         74 |          7 |         19 |        100 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\alns_truck_router.py             | Python           |          0 |          1 |          1 |          2 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\local_search_truck_router.py     | Python           |        256 |          3 |         30 |        289 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\truck_fleet_sizer.py             | Python           |        104 |         10 |         35 |        149 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\components\truck_router\truck_router.py                  | Python           |        156 |          0 |         12 |        168 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\config\default.py                                        | Python           |         49 |          6 |          6 |         61 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\config\env.py                                            | Python           |         65 |         11 |         20 |         96 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\cluster.py                                 | Python           |         48 |          1 |         14 |         63 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\location.py                                | Python           |         21 |          1 |          6 |         28 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\route.py                                   | Python           |         43 |          1 |         11 |         55 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\entities\vehicle.py                                 | Python           |         37 |          1 |         13 |         51 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\interfaces\clustering.py                            | Python           |         51 |          1 |         14 |         66 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\core\interfaces\routing.py                               | Python           |         58 |          1 |         13 |         72 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\infrastructure\io\solomon_reader.py                      | Python           |         67 |          6 |         14 |         87 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\infrastructure\visualization\solution_visualizer.py      | Python           |        198 |         30 |         53 |        281 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\main.py                                                  | Python           |         35 |          3 |         15 |         53 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\benchmarking\baseline_service.py                | Python           |        148 |         20 |         36 |        204 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\benchmarking\comparison_service.py              | Python           |        329 |         31 |         57 |        417 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\clustering\capacitated_splitter.py              | Python           |         80 |         15 |         20 |        115 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\clustering\cluster_service.py                   | Python           |         60 |          6 |         13 |         79 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\clustering\hdbscan_clustering.py                | Python           |         77 |         11 |         23 |        111 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\optimization\advanced_location_optimizer.py     | Python           |        253 |         49 |         77 |        379 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\robot_deployment\smart_loader.py                | Python           |         94 |         11 |         27 |        132 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\cluster_route_handler.py                | Python           |        213 |         32 |         47 |        292 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\local_search.py                         | Python           |        306 |         43 |         86 |        435 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\netro_routing_service.py                | Python           |        192 |         22 |         32 |        246 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\ortools_cvrp.py                         | Python           |         98 |         10 |         24 |        132 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\robot_routing_service.py                | Python           |        259 |         34 |         65 |        358 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\services\routing\truck_route_planner.py                  | Python           |        171 |         25 |         46 |        242 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\utils\__init__.py                                        | Python           |          0 |          0 |          1 |          1 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\netro\utils\distance_matrix_calculator.py                      | Python           |        114 |         17 |         34 |        165 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\readme.md                                                      | Markdown         |        128 |          0 |         52 |        180 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\requirements.txt                                               | pip requirements |          9 |          0 |          0 |          9 |
+| d:\6 Viadrina\Robotics Thesis\Application\Netro\setup.py                                                       | Python           |         15 |          1 |          3 |         19 |
+| Total                                                                                                          |                  |      4,655 |        488 |      1,091 |      6,234 |
++----------------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
